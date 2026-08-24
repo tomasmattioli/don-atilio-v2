@@ -1,0 +1,25 @@
+# Entorno virtual
+venv/
+.venv/
+
+# Caché de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Variables de entorno y secretos (NUNCA subir esto)
+.env
+.env.*
+
+# Configuración de IDEs
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
