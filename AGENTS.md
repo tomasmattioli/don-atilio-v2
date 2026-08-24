@@ -20,6 +20,12 @@ No lo expliques en detalle, pero avisame brevemente cuando:
 
 Estas excepciones son intencionales: no quiero perder tiempo en explicaciones, pero si algo de esto sale mal, es muy caro de arreglar después — así que necesito enterarme aunque sea en una línea.
 
+## Sobre "hacerlo profesional"
+
+Quiero que, CUANDO tengas que decidir CÓMO resolver algo que ya está pedido, uses el patrón que usaría un sistema de cobros/POS real — no la solución más rápida y frágil.
+
+Esto NO significa agregar funcionalidades extra, capas de arquitectura, tests exhaustivos, ni nada que no esté ya pedido. Es sobre la CALIDAD de cómo se implementa lo que ya pedí, no sobre AGREGAR más alcance. Si "hacerlo profesional" implica sumar trabajo o tiempo extra no pedido, priorizá terminar rápido y avisame la simplificación que hiciste (regla de arriba).
+
 ## Contexto del proyecto
 
 Sistema de punto de venta para el almacén de mi papá. Stack: Python + FastAPI + SQLAlchemy + MariaDB, frontend web. Roles: Admin y Vendedor únicamente. Sin clientes/proveedores/cuenta corriente/bitácora/tesorería — todo eso fue sacado a pedido explícito. Pagos combinados permitidos (varios métodos por venta). Sin cálculo de vuelto.

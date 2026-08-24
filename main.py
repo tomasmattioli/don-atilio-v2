@@ -8,9 +8,11 @@ models.Base.metadata.create_all(bind=engine)
 # Inicializamos la aplicación FastAPI
 app = FastAPI(title="Don Atilio API", version="2.0")
 
-from app.routers import catalogo, usuarios
+from app.routers import catalogo, usuarios, caja, ventas
 app.include_router(catalogo.router)
 app.include_router(usuarios.router)
+app.include_router(caja.router)
+app.include_router(ventas.router)
 
 # Creamos nuestro primer "endpoint" (la URL raíz)
 @app.get("/")

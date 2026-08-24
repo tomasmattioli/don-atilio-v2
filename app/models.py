@@ -105,9 +105,9 @@ class CajaSession(Base):
 
 class MetodoPago(enum.Enum):
     efectivo = "efectivo"
-    tranferencia = "tranferencia"
-    tarjeta_debito = "debito"
-    tarjeta_credito = "credito"
+    transferencia = "transferencia"
+    tarjeta_debito = "tarjeta_debito"
+    tarjeta_credito = "tarjeta_credito"
 
 class EstadoVenta(enum.Enum):
     pendiente = "pendiente"
