@@ -20,6 +20,12 @@ __pycache__/
 # Logs
 *.log
 
+# Frontend / Node
+node_modules/
+dist/
+.output/
+
 # Archivos de sistema
 .DS_Store
 Thumbs.db
+

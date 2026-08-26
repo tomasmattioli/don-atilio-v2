@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mi Abejita V2 - Prueba de API</title>
+    <style>
+      body { font-family: sans-serif; padding: 20px; }
+      h1 { color: #333; }
+      .container { display: flex; gap: 20px; }
+      .box { border: 1px solid #ccc; padding: 15px; width: 50%; border-radius: 8px; }
+      button { padding: 8px 16px; cursor: pointer; }
+      pre { background: #f4f4f4; padding: 10px; overflow-x: auto; border-radius: 4px; }
+      .venta-item { border-bottom: 1px solid #eee; padding: 10px 0; }
+    </style>
+  </head>
+  <body>
+    <h1>Mi Abejita V2 - Tester de Flujo Base</h1>
+    <p>Este es un cliente HTML/JS muy simple para validar que la API de Ventas funciona de punta a punta (CORS, lazy loading, etc.) antes de armar el React.</p>
+    
+    <div class="container">
+      <div class="box">
+        <h2>Últimas Ventas</h2>
+        <button id="btn-cargar-ventas">Cargar Ventas</button>
+        <div id="lista-ventas" style="margin-top: 15px;"></div>
+      </div>
+      
+      <div class="box">
+        <h2>Prueba de Estado</h2>
+        <p>Asegurate de que el backend (FastAPI) esté corriendo en el puerto 8000.</p>
+        <div id="estado-api"></div>
+      </div>
+    </div>
+
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
