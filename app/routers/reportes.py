@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from decimal import Decimal
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from pydantic import BaseModel
 from typing import List, Optional
 
@@ -28,6 +28,12 @@ class ResumenDia(BaseModel):
     transferencia: Decimal
     debito: Decimal
     credito: Decimal
+
+
+class VentasPorDiaItem(BaseModel):
+    fecha: str
+    total: Decimal
+    cantidad_ventas: int
 
 
 class ResumenCategoria(BaseModel):
@@ -297,3 +303,51 @@ def reporte_periodo(
         desglose_dias=desglose_dias,
         desglose_categorias=desglose_categorias,
     )
+
+
+@router.get("/ventas-por-dia", response_model=List[VentasPorDiaItem])
+def ventas_por_dia(
+    desde: Optional[date] = Query(None, description="Fecha inicio (YYYY-MM-DD)"),
+    hasta: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
+    user_id: int = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Devuelve las ventas agrupadas por día para un rango de fechas (por defecto los últimos 30 días)."""
+    hoy = date.today()
+    fecha_fin = hasta or hoy
+    fecha_inicio = desde or (fecha_fin - timedelta(days=29))
+
+    ventas_agrupadas = (
+        db.query(
+            func.date(models.Venta.fecha).label("fecha_dia"),
+            func.sum(models.Venta.total).label("total"),
+            func.count(models.Venta.id_venta).label("cantidad_ventas")
+        )
+        .filter(
+            models.Venta.estado == models.EstadoVenta.completada,
+            func.date(models.Venta.fecha) >= fecha_inicio,
+            func.date(models.Venta.fecha) <= fecha_fin
+        )
+        .group_by(func.date(models.Venta.fecha))
+        .all()
+    )
+
+    dias_map = {}
+    for row in ventas_agrupadas:
+        f_key = str(row.fecha_dia)[:10]
+        dias_map[f_key] = (row.total or Decimal("0"), row.cantidad_ventas or 0)
+
+    resultado = []
+    curr = fecha_inicio
+    while curr <= fecha_fin:
+        curr_str = curr.strftime("%Y-%m-%d")
+        total_dia, cant = dias_map.get(curr_str, (Decimal("0"), 0))
+        resultado.append(VentasPorDiaItem(
+            fecha=curr_str,
+            total=total_dia,
+            cantidad_ventas=cant
+        ))
+        curr += timedelta(days=1)
+
+    return resultado
+

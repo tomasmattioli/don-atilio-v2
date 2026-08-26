@@ -1,8 +1,23 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Box, Typography, Grid, Card, CardContent, Alert, CircularProgress, Chip,
-  Table, TableBody, TableCell, TableHead, TableRow, Paper, Button, Avatar, Tooltip
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Alert,
+  CircularProgress,
+  Chip,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Paper,
+  Button,
+  Avatar,
+  Tooltip,
+  TableContainer,
 } from "@mui/material";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
@@ -11,10 +26,16 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import StarIcon from "@mui/icons-material/Star";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { API_URL, getHeaders } from "../api/client";
+import VentasPorDiaChart from "../components/pos/VentasPorDiaChart";
 
 function fmt(val) {
-  return `$${parseFloat(val ?? 0).toFixed(2)}`;
+  const num = parseFloat(val ?? 0);
+  return `$${num.toLocaleString("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function MetricCard({ icon: Icon, label, value, iconColor, iconBg, children }) {
@@ -57,7 +78,7 @@ function MetricCard({ icon: Icon, label, value, iconColor, iconBg, children }) {
               {label}
             </Typography>
             <Typography
-              variant="h3"
+              variant="h4"
               fontWeight={800}
               sx={{ lineHeight: 1.15, mt: 0.5, color: "text.primary", letterSpacing: "-0.02em" }}
             >
@@ -114,26 +135,53 @@ export default function DashboardPage() {
     : [];
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3.5 }, width: "100%", boxSizing: "border-box" }}>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" fontWeight="bold">
-          Dashboard de Control
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Métricas y estado del negocio en tiempo real.
-        </Typography>
+    <Box
+      sx={{
+        p: { xs: 2, sm: 3, md: 3.5 },
+        width: "100%",
+        maxWidth: "100%",
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        gap: 3,
+      }}
+    >
+      {/* ── Encabezado Principal ─────────────────────────────────────────── */}
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
+        <Box>
+          <Typography variant="h5" fontWeight="bold">
+            Dashboard de Control
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Métricas de facturación, actividad de cajas y estado del inventario en tiempo real.
+          </Typography>
+        </Box>
       </Box>
 
-      {error && <Alert severity="warning" sx={{ mb: 3 }}>{error}</Alert>}
+      {error && <Alert severity="warning">{error}</Alert>}
 
       {!data && !error ? (
-        <Box display="flex" justifyContent="center" mt={6}>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
           <CircularProgress />
         </Box>
       ) : data ? (
-        <Grid container spacing={3}>
-          {/* ── Tarjeta 1: Ventas de hoy ─────────────────────────── */}
-          <Grid item xs={12} sm={6} md={4}>
+        <>
+          {/* ════════════════════════════════════════════════════════════════
+              FILA 1: MÉTRICAS RÁPIDAS (3 columnas iguales, 100% ancho)
+             ════════════════════════════════════════════════════════════════ */}
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, 1fr)",
+                md: "repeat(3, 1fr)",
+              },
+              gap: 3,
+              width: "100%",
+            }}
+          >
+            {/* Tarjeta 1: Ventas del Día */}
             <MetricCard
               icon={PointOfSaleIcon}
               label="Ventas del Día"
@@ -145,10 +193,8 @@ export default function DashboardPage() {
                 {data.ventas_hoy === 1 ? "1 ticket emitido hoy" : `${data.ventas_hoy} tickets emitidos hoy`}
               </Typography>
             </MetricCard>
-          </Grid>
 
-          {/* ── Tarjeta 2: Recaudado hoy ─────────────────────────── */}
-          <Grid item xs={12} sm={6} md={4}>
+            {/* Tarjeta 2: Recaudado Hoy */}
             <MetricCard
               icon={AttachMoneyIcon}
               label="Recaudado Hoy"
@@ -175,10 +221,8 @@ export default function DashboardPage() {
                 </Typography>
               )}
             </MetricCard>
-          </Grid>
 
-          {/* ── Tarjeta 3: Cajas abiertas ────────────────────────── */}
-          <Grid item xs={12} sm={12} md={4}>
+            {/* Tarjeta 3: Cajas Abiertas Ahora */}
             <MetricCard
               icon={LockOpenIcon}
               label="Cajas Abiertas Ahora"
@@ -222,299 +266,317 @@ export default function DashboardPage() {
                 </Typography>
               )}
             </MetricCard>
-          </Grid>
+          </Box>
 
-          {/* ── Tarjeta 4: Top 5 más vendidos (Mitad Izquierda) ──── */}
-          <Grid item xs={12} md={6}>
-            <Card
+          {/* ════════════════════════════════════════════════════════════════
+              FILA 2: GRÁFICO (IZQUIERDA ~65%) & ALERTAS + TOP 5 (DERECHA ~35%)
+             ════════════════════════════════════════════════════════════════ */}
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                lg: "1.85fr 1.15fr",
+              },
+              gap: 3,
+              width: "100%",
+              alignItems: "stretch",
+            }}
+          >
+            {/* Columna Izquierda: Gráfico de Ventas de los Últimos 30 Días */}
+            <Box sx={{ minWidth: 0, width: "100%", height: "100%" }}>
+              <VentasPorDiaChart />
+            </Box>
+
+            {/* Columna Derecha: Alertas de Stock + Top 5 Más Vendidos */}
+            <Box
               sx={{
-                borderRadius: 2.5,
-                border: "1px solid",
-                borderColor: "divider",
-                height: "100%",
+                minWidth: 0,
+                width: "100%",
                 display: "flex",
                 flexDirection: "column",
-                bgcolor: "#FFFFFF",
-                boxShadow: "0 1px 3px rgba(15, 23, 42, 0.04)",
+                gap: 2.5,
               }}
             >
-              <CardContent
+              {/* ── Tarjeta 1: Alertas de Stock (Compacta) ──────────────── */}
+              <Card
                 sx={{
-                  p: 2.5,
-                  flex: 1,
+                  borderRadius: 2.5,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: "#FFFFFF",
+                  boxShadow: "0 1px 3px rgba(15, 23, 42, 0.04)",
                   display: "flex",
                   flexDirection: "column",
-                  "&:last-child": { pb: 2.5 },
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+                      <Box
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 2,
+                          bgcolor: data.stock_bajo.length > 0 ? "#FEE2E2" : "#DCFCE7",
+                          color: data.stock_bajo.length > 0 ? "#DC2626" : "#16A34A",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {data.stock_bajo.length > 0 ? (
+                          <WarningAmberIcon sx={{ fontSize: 18 }} />
+                        ) : (
+                          <CheckCircleIcon sx={{ fontSize: 18 }} />
+                        )}
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight="bold" sx={{ lineHeight: 1.1 }}>
+                          Alertas de Stock
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
+                          Reposición requerida
+                        </Typography>
+                      </Box>
+                    </Box>
+                    {data.stock_bajo.length > 0 ? (
+                      <Chip
+                        label={`${data.stock_bajo.length} críticos`}
+                        size="small"
+                        color="error"
+                        sx={{ fontWeight: 700, fontSize: "0.7rem", height: 22 }}
+                      />
+                    ) : (
+                      <Chip
+                        label="Óptimo"
+                        size="small"
+                        color="success"
+                        variant="outlined"
+                        sx={{ fontWeight: 600, fontSize: "0.7rem", height: 22 }}
+                      />
+                    )}
+                  </Box>
+
+                  {data.stock_bajo.length === 0 ? (
                     <Box
                       sx={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 2,
-                        bgcolor: "#FEF3C7",
-                        color: "#D97706",
+                        py: 1.5,
+                        px: 2,
+                        textAlign: "center",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
+                        justifyContent: "space-between",
+                        bgcolor: "#F8FAFC",
+                        borderRadius: 2,
+                        border: "1px dashed #CBD5E1",
                       }}
                     >
-                      <StarIcon sx={{ fontSize: 20 }} />
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <CheckCircleIcon sx={{ fontSize: 18, color: "#16A34A" }} />
+                        <Typography variant="caption" fontWeight={600} color="text.secondary">
+                          Todos los artículos sobre el mínimo
+                        </Typography>
+                      </Box>
+                      <Button
+                        size="small"
+                        onClick={() => navigate("/productos")}
+                        sx={{ fontSize: "0.7rem", py: 0.25, minHeight: 24 }}
+                      >
+                        Catálogo →
+                      </Button>
                     </Box>
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight="bold">
-                        Top 5 Más Vendidos
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Ranking mensual por volumen y recaudación
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Chip
-                    label="Este mes"
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontWeight: 600, fontSize: "0.7rem", height: 22 }}
-                  />
-                </Box>
-
-                {data.top_productos_mes.length === 0 ? (
-                  <Box
-                    sx={{
-                      py: 4,
-                      px: 2,
-                      textAlign: "center",
-                      flex: 1,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      bgcolor: "#F8FAFC",
-                      borderRadius: 2,
-                      border: "1px dashed #CBD5E1",
-                    }}
-                  >
-                    <ShoppingBagIcon sx={{ fontSize: 32, color: "text.disabled", mb: 1 }} />
-                    <Typography variant="body2" fontWeight={600} color="text.secondary">
-                      Sin ventas registradas este mes
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                      Las estadísticas de los artículos más vendidos aparecerán aquí automáticamente.
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Paper variant="outlined" sx={{ overflow: "hidden", borderRadius: 2, flex: 1 }}>
-                    <Table size="small">
-                      <TableHead sx={{ bgcolor: "action.hover" }}>
-                        <TableRow>
-                          <TableCell sx={{ width: 36, py: 1 }}>#</TableCell>
-                          <TableCell sx={{ py: 1 }}>Producto</TableCell>
-                          <TableCell align="right" sx={{ py: 1 }}>Unidades</TableCell>
-                          <TableCell align="right" sx={{ py: 1 }}>Total</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {data.top_productos_mes.map((p, i) => {
-                          const rankColor = i === 0 ? "#B45309" : i === 1 ? "#475569" : i === 2 ? "#92400E" : "#64748B";
-                          const rankBg = i === 0 ? "#FEF3C7" : i === 1 ? "#F1F5F9" : i === 2 ? "#FFEDD5" : "#F8FAFC";
-                          return (
-                            <TableRow key={p.id_producto || i} hover>
-                              <TableCell sx={{ py: 1 }}>
-                                <Box
-                                  sx={{
-                                    width: 22,
-                                    height: 22,
-                                    borderRadius: "50%",
-                                    bgcolor: rankBg,
-                                    color: rankColor,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: "0.75rem",
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  {i + 1}
-                                </Box>
+                  ) : (
+                    <Box sx={{ display: "flex", flexDirection: "column" }}>
+                      <TableContainer
+                        component={Paper}
+                        variant="outlined"
+                        sx={{
+                          overflow: "auto",
+                          maxHeight: 140,
+                          borderRadius: 1.5,
+                        }}
+                      >
+                        <Table size="small" stickyHeader>
+                          <TableHead>
+                            <TableRow sx={{ bgcolor: "#F8FAFC" }}>
+                              <TableCell sx={{ py: 0.5, fontSize: "0.7rem", fontWeight: 700 }}>Producto</TableCell>
+                              <TableCell align="right" sx={{ py: 0.5, fontSize: "0.7rem", fontWeight: 700 }}>
+                                Stock
                               </TableCell>
-                              <TableCell sx={{ fontWeight: 600, py: 1 }}>
-                                {p.nombre}
-                              </TableCell>
-                              <TableCell align="right" sx={{ py: 1 }}>
-                                <Chip
-                                  label={parseFloat(p.unidades_vendidas).toFixed(p.unidades_vendidas % 1 !== 0 ? 3 : 0)}
-                                  size="small"
-                                  variant="outlined"
-                                  sx={{ fontWeight: 600, height: 22, fontSize: "0.75rem" }}
-                                />
-                              </TableCell>
-                              <TableCell align="right" sx={{ fontWeight: 700, color: "primary.main", py: 1 }}>
-                                {fmt(p.total_recaudado)}
+                              <TableCell align="right" sx={{ py: 0.5, fontSize: "0.7rem", fontWeight: 700 }}>
+                                Mín.
                               </TableCell>
                             </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </Paper>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
+                          </TableHead>
+                          <TableBody>
+                            {data.stock_bajo.map((s) => {
+                              const agotado = parseFloat(s.cantidad_actual) <= 0;
+                              return (
+                                <TableRow key={s.id_producto} hover>
+                                  <TableCell sx={{ fontWeight: 600, py: 0.5, fontSize: "0.75rem" }}>
+                                    {s.nombre}
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ py: 0.5 }}>
+                                    <Chip
+                                      label={parseFloat(s.cantidad_actual).toFixed(
+                                        s.cantidad_actual % 1 !== 0 ? 3 : 0
+                                      )}
+                                      size="small"
+                                      color={agotado ? "error" : "warning"}
+                                      sx={{ fontWeight: 700, height: 18, fontSize: "0.68rem" }}
+                                    />
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ py: 0.5, color: "text.secondary", fontSize: "0.72rem" }}>
+                                    {s.stock_minimo}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                      <Box sx={{ mt: 1, display: "flex", justifyContent: "flex-end" }}>
+                        <Button
+                          size="small"
+                          endIcon={<ArrowForwardIcon sx={{ fontSize: "12px !important" }} />}
+                          onClick={() => navigate("/productos")}
+                          sx={{ fontSize: "0.7rem", fontWeight: 600, py: 0 }}
+                        >
+                          Gestionar en Catálogo
+                        </Button>
+                      </Box>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
 
-          {/* ── Tarjeta 5: Alertas de Stock (Mitad Derecha) ────────── */}
-          <Grid item xs={12} md={6}>
-            <Card
-              sx={{
-                borderRadius: 2.5,
-                border: "1px solid",
-                borderColor: "divider",
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                bgcolor: "#FFFFFF",
-                boxShadow: "0 1px 3px rgba(15, 23, 42, 0.04)",
-              }}
-            >
-              <CardContent
+              {/* ── Tarjeta 2: Top 5 Más Vendidos (Compacta) ───────────── */}
+              <Card
                 sx={{
-                  p: 2.5,
-                  flex: 1,
+                  borderRadius: 2.5,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: "#FFFFFF",
+                  boxShadow: "0 1px 3px rgba(15, 23, 42, 0.04)",
                   display: "flex",
                   flexDirection: "column",
-                  "&:last-child": { pb: 2.5 },
+                  flex: 1,
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                    <Box
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 2,
-                        bgcolor: data.stock_bajo.length > 0 ? "#FEE2E2" : "#DCFCE7",
-                        color: data.stock_bajo.length > 0 ? "#DC2626" : "#16A34A",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {data.stock_bajo.length > 0 ? (
-                        <WarningAmberIcon sx={{ fontSize: 20 }} />
-                      ) : (
-                        <CheckCircleIcon sx={{ fontSize: 20 }} />
-                      )}
+                <CardContent sx={{ p: 2, flex: 1, display: "flex", flexDirection: "column", "&:last-child": { pb: 2 } }}>
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+                      <Box
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 2,
+                          bgcolor: "#FEF3C7",
+                          color: "#D97706",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <StarIcon sx={{ fontSize: 18 }} />
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight="bold" sx={{ lineHeight: 1.1 }}>
+                          Top 5 Más Vendidos
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
+                          Ranking mensual
+                        </Typography>
+                      </Box>
                     </Box>
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight="bold">
-                        Alertas de Stock
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Artículos que requieren reposición
-                      </Typography>
-                    </Box>
-                  </Box>
-                  {data.stock_bajo.length > 0 ? (
                     <Chip
-                      label={`${data.stock_bajo.length} críticos`}
+                      label="Este mes"
                       size="small"
-                      color="error"
-                      sx={{ fontWeight: 700, fontSize: "0.7rem", height: 22 }}
-                    />
-                  ) : (
-                    <Chip
-                      label="Stock Óptimo"
-                      size="small"
-                      color="success"
                       variant="outlined"
-                      sx={{ fontWeight: 600, fontSize: "0.7rem", height: 22 }}
+                      sx={{ fontWeight: 600, fontSize: "0.68rem", height: 20 }}
                     />
-                  )}
-                </Box>
+                  </Box>
 
-                {data.stock_bajo.length === 0 ? (
-                  <Box
-                    sx={{
-                      py: 4,
-                      px: 2,
-                      textAlign: "center",
-                      flex: 1,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      bgcolor: "#F8FAFC",
-                      borderRadius: 2,
-                      border: "1px dashed #CBD5E1",
-                    }}
-                  >
+                  {data.top_productos_mes.length === 0 ? (
                     <Box
                       sx={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: "50%",
-                        bgcolor: "#DCFCE7",
-                        color: "#16A34A",
+                        py: 2.5,
+                        px: 2,
+                        textAlign: "center",
+                        flex: 1,
                         display: "flex",
+                        flexDirection: "column",
                         alignItems: "center",
                         justifyContent: "center",
-                        mb: 1.5,
+                        bgcolor: "#F8FAFC",
+                        borderRadius: 2,
+                        border: "1px dashed #CBD5E1",
                       }}
                     >
-                      <CheckCircleIcon sx={{ fontSize: 26 }} />
+                      <ShoppingBagIcon sx={{ fontSize: 24, color: "text.disabled", mb: 0.5 }} />
+                      <Typography variant="caption" fontWeight={600} color="text.secondary">
+                        Sin ventas registradas este mes
+                      </Typography>
                     </Box>
-                    <Typography variant="subtitle2" fontWeight="bold" color="text.primary">
-                      Inventario al día
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ mt: 0.5, maxWidth: 320, lineHeight: 1.4 }}
-                    >
-                      Todos los artículos activos cuentan con existencias por encima del stock mínimo.
-                    </Typography>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => navigate("/productos")}
-                      sx={{ mt: 2, fontSize: "0.75rem", minHeight: 32 }}
-                    >
-                      Ver Catálogo Completo
-                    </Button>
-                  </Box>
-                ) : (
-                  <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                    <Paper variant="outlined" sx={{ overflow: "hidden", borderRadius: 2, flex: 1 }}>
+                  ) : (
+                    <Paper variant="outlined" sx={{ overflow: "hidden", borderRadius: 1.5, flex: 1 }}>
                       <Table size="small">
                         <TableHead sx={{ bgcolor: "action.hover" }}>
                           <TableRow>
-                            <TableCell sx={{ py: 1 }}>Producto</TableCell>
-                            <TableCell align="right" sx={{ py: 1 }}>Stock actual</TableCell>
-                            <TableCell align="right" sx={{ py: 1 }}>Mínimo</TableCell>
+                            <TableCell sx={{ width: 28, py: 0.5, fontSize: "0.7rem" }}>#</TableCell>
+                            <TableCell sx={{ py: 0.5, fontSize: "0.7rem" }}>Producto</TableCell>
+                            <TableCell align="right" sx={{ py: 0.5, fontSize: "0.7rem" }}>
+                              Cant.
+                            </TableCell>
+                            <TableCell align="right" sx={{ py: 0.5, fontSize: "0.7rem" }}>
+                              Total
+                            </TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {data.stock_bajo.map((s) => {
-                            const agotado = parseFloat(s.cantidad_actual) <= 0;
+                          {data.top_productos_mes.map((p, i) => {
+                            const rankColor =
+                              i === 0 ? "#B45309" : i === 1 ? "#475569" : i === 2 ? "#92400E" : "#64748B";
+                            const rankBg =
+                              i === 0 ? "#FEF3C7" : i === 1 ? "#F1F5F9" : i === 2 ? "#FFEDD5" : "#F8FAFC";
                             return (
-                              <TableRow key={s.id_producto} hover>
-                                <TableCell sx={{ fontWeight: 600, py: 1 }}>
-                                  {s.nombre}
+                              <TableRow key={p.id_producto || i} hover>
+                                <TableCell sx={{ py: 0.5 }}>
+                                  <Box
+                                    sx={{
+                                      width: 18,
+                                      height: 18,
+                                      borderRadius: "50%",
+                                      bgcolor: rankBg,
+                                      color: rankColor,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontSize: "0.68rem",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {i + 1}
+                                  </Box>
                                 </TableCell>
-                                <TableCell align="right" sx={{ py: 1 }}>
+                                <TableCell sx={{ fontWeight: 600, py: 0.5, fontSize: "0.75rem" }}>
+                                  {p.nombre}
+                                </TableCell>
+                                <TableCell align="right" sx={{ py: 0.5 }}>
                                   <Chip
-                                    label={parseFloat(s.cantidad_actual).toFixed(
-                                      s.cantidad_actual % 1 !== 0 ? 3 : 0
+                                    label={parseFloat(p.unidades_vendidas).toFixed(
+                                      p.unidades_vendidas % 1 !== 0 ? 3 : 0
                                     )}
                                     size="small"
-                                    color={agotado ? "error" : "warning"}
-                                    sx={{ fontWeight: 700, height: 22, fontSize: "0.75rem" }}
+                                    variant="outlined"
+                                    sx={{ fontWeight: 600, height: 18, fontSize: "0.68rem" }}
                                   />
                                 </TableCell>
-                                <TableCell align="right" sx={{ py: 1, color: "text.secondary", fontSize: "0.8rem" }}>
-                                  {s.stock_minimo}
+                                <TableCell align="right" sx={{ fontWeight: 700, color: "primary.main", py: 0.5, fontSize: "0.75rem" }}>
+                                  {fmt(p.total_recaudado)}
                                 </TableCell>
                               </TableRow>
                             );
@@ -522,21 +584,12 @@ export default function DashboardPage() {
                         </TableBody>
                       </Table>
                     </Paper>
-                    <Box sx={{ mt: 1.5, display: "flex", justifyContent: "flex-end" }}>
-                      <Button
-                        size="small"
-                        onClick={() => navigate("/productos")}
-                        sx={{ fontSize: "0.75rem" }}
-                      >
-                        Gestionar Stock en Catálogo →
-                      </Button>
-                    </Box>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+                  )}
+                </CardContent>
+              </Card>
+            </Box>
+          </Box>
+        </>
       ) : null}
     </Box>
   );
