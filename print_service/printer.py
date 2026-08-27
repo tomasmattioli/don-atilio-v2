@@ -157,17 +157,14 @@ class TicketPrinter:
         ancho = self.ancho
         
         try:
-            # 1. Encabezado del negocio (Centrado y Negrita)
-            if settings.TICKET_TITLE:
-                p.set(align="center", bold=True, double_height=False, double_width=False)
-                p.text(f"{settings.TICKET_TITLE}\n")
-
-            p.set(align="center", bold=True, double_height=True, double_width=False)
+            # 1. Encabezado del negocio (Centrado)
+            p.set(align="center", bold=True, double_height=True, double_width=True)
             p.text(f"{settings.BUSINESS_NAME}\n")
             
-            p.set(align="center", bold=False, double_height=False, double_width=False)
+            p.set(align="center", bold=True, double_height=False, double_width=False)
             if settings.BUSINESS_SUBTITLE:
                 p.text(f"{settings.BUSINESS_SUBTITLE}\n")
+            p.set(align="center", bold=False, double_height=False, double_width=False)
             if settings.BUSINESS_ADDRESS:
                 p.text(f"{settings.BUSINESS_ADDRESS}\n")
             if settings.BUSINESS_PHONE:
@@ -176,6 +173,12 @@ class TicketPrinter:
                 p.text(f"{settings.BUSINESS_CUIT}\n")
                 
             p.text("=" * ancho + "\n")
+            
+            # 2. Identificación del tipo de ticket
+            if settings.TICKET_TITLE:
+                p.set(align="center", bold=True, double_height=False, double_width=False)
+                p.text(f"{settings.TICKET_TITLE}\n")
+                p.text("-" * ancho + "\n")
             
             # 2. Metadatos de la venta (Fecha, Ticket, Vendedor, Cliente)
             p.set(align="left", bold=False)

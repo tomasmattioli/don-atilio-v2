@@ -9,8 +9,8 @@ load_dotenv(dotenv_path=env_path)
 class Settings:
     # ── Datos del Negocio y Encabezado ──
     TICKET_TITLE: str = os.getenv("TICKET_TITLE", "PRESUPUESTO ORIGINAL")
-    BUSINESS_NAME: str = os.getenv("BUSINESS_NAME", "MI ABEJITA")
-    BUSINESS_SUBTITLE: str = os.getenv("BUSINESS_SUBTITLE", "")
+    BUSINESS_NAME: str = os.getenv("BUSINESS_NAME", "BEE")
+    BUSINESS_SUBTITLE: str = os.getenv("BUSINESS_SUBTITLE", "DISTRIBUIDORA")
     BUSINESS_ADDRESS: str = os.getenv("BUSINESS_ADDRESS", "Ruta 1")
     BUSINESS_PHONE: str = os.getenv("BUSINESS_PHONE", "")
     BUSINESS_CUIT: str = os.getenv("BUSINESS_CUIT", "")
