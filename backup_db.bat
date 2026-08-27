@@ -14,7 +14,7 @@ cd /d "%ROOT_DIR%"
 if not exist "backups" mkdir "backups"
 
 :: Configuración por defecto (modificar si tus credenciales cambian)
-set "DB_NAME=don_atilio"
+set "DB_NAME=mi_abejita"
 set "DB_USER=root"
 set "DB_HOST=127.0.0.1"
 set "DB_PORT=3306"

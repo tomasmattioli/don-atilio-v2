@@ -4,6 +4,21 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    proxy: {
+      '/auth': 'http://127.0.0.1:8000',
+      '/roles': 'http://127.0.0.1:8000',
+      '/usuarios': 'http://127.0.0.1:8000',
+      '/admin': 'http://127.0.0.1:8000',
+      '/catalogo': 'http://127.0.0.1:8000',
+      '/caja': 'http://127.0.0.1:8000',
+      '/ventas': 'http://127.0.0.1:8000',
+      '/inventario': 'http://127.0.0.1:8000',
+      '/reportes': 'http://127.0.0.1:8000',
+      '/docs': 'http://127.0.0.1:8000',
+      '/openapi.json': 'http://127.0.0.1:8000',
+    },
+  },
   plugins: [
     react(),
     VitePWA({

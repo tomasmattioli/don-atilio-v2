@@ -1,4 +1,4 @@
-export const API_URL = "";
+export const API_URL = import.meta.env.VITE_API_URL || "";
 
 /**
  * Limpia la sesión del usuario en localStorage y redirige al /login.
