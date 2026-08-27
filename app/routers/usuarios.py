@@ -120,3 +120,48 @@ def cambiar_password(
     db.commit()
     db.refresh(usuario)
     return usuario
+
+import os
+import subprocess
+import glob
+from datetime import datetime
+from fastapi.responses import FileResponse
+
+@router.get("/admin/backup/descargar")
+def descargar_backup(user_id: int = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    _solo_admin(user_id, db)
+    
+    os.makedirs("backups", exist_ok=True)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filepath = f"backups/backup_mi_abejita_{timestamp}.sql"
+    
+    # Extraer nombre de la base de datos desde la variable de entorno DB_URL si es posible
+    db_name = "mi_abejita"
+    db_url = os.getenv("DB_URL", "")
+    if db_url and "/" in db_url:
+        db_name = db_url.split("/")[-1].split("?")[0]
+
+    try:
+        with open(filepath, "w") as f:
+            subprocess.run(["mysqldump", "-h", "127.0.0.1", "-P", "3306", "-u", "root", db_name], stdout=f, check=True)
+    except FileNotFoundError:
+        paths = glob.glob("C:/Program Files/MariaDB*/bin/mysqldump.exe") + \
+                glob.glob("C:/Program Files/MySQL/MySQL Server*/bin/mysqldump.exe") + \
+                ["C:/xampp/mysql/bin/mysqldump.exe"]
+        
+        success = False
+        for path in paths:
+            if os.path.exists(path):
+                try:
+                    with open(filepath, "w") as f:
+                        subprocess.run([path, "-h", "127.0.0.1", "-P", "3306", "-u", "root", db_name], stdout=f, check=True)
+                    success = True
+                    break
+                except Exception:
+                    continue
+        if not success:
+            raise HTTPException(status_code=500, detail="No se encontró mysqldump o falló la exportación.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    return FileResponse(path=filepath, filename=os.path.basename(filepath), media_type='application/sql')

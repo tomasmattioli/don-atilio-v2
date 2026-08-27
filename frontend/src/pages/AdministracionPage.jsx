@@ -504,6 +504,7 @@ export default function AdministracionPage() {
         <Tabs value={tabActual} onChange={(_, val) => setTabActual(val)}>
           <Tab icon={<GroupIcon />} iconPosition="start" label="Usuarios del Sistema" />
           <Tab icon={<CategoryIcon />} iconPosition="start" label="Gestión de Categorías y Atajos" />
+          <Tab icon={<KeyboardIcon />} iconPosition="start" label="Sistema / Respaldo" />
         </Tabs>
       </Box>
 
@@ -679,6 +680,64 @@ export default function AdministracionPage() {
                 )}
               </TableBody>
             </Table>
+          </Paper>
+        </Box>
+      )}
+
+      {/* ─── TAB 2: SISTEMA ─── */}
+      {tabActual === 2 && (
+        <Box>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Box>
+              <Typography variant="h6" fontWeight="bold">Sistema y Base de Datos</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Generá y descargá copias de seguridad de la base de datos para prevenir pérdida de información.
+              </Typography>
+            </Box>
+          </Box>
+          <Paper variant="outlined" sx={{ p: 4, display: "flex", flexDirection: "column", gap: 2, alignItems: "flex-start" }}>
+            <Typography variant="body1">
+              Podés descargar una copia exacta de toda la información (ventas, inventario, usuarios) en formato SQL.
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              size="large"
+              onClick={async () => {
+                try {
+                  const res = await fetch(`${API_URL}/admin/backup/descargar`, {
+                    headers: getHeaders(false),
+                  });
+                  if (!res.ok) throw new Error("Error al descargar backup. Verificá que estés como administrador.");
+                  const blob = await res.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  
+                  // Extract filename from Content-Disposition if present
+                  const disposition = res.headers.get("Content-Disposition");
+                  let filename = `backup_mi_abejita.sql`;
+                  if (disposition && disposition.indexOf('attachment') !== -1) {
+                    const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                    const matches = filenameRegex.exec(disposition);
+                    if (matches != null && matches[1]) { 
+                      filename = matches[1].replace(/['"]/g, '');
+                    }
+                  }
+                  
+                  a.download = filename;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  window.URL.revokeObjectURL(url);
+                  setMensajeExito("Backup descargado con éxito.");
+                } catch (e) {
+                  setError(e.message);
+                }
+              }}
+            >
+              Generar y Descargar Backup
+            </Button>
           </Paper>
         </Box>
       )}

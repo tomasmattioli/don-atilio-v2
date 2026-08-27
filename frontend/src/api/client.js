@@ -1,4 +1,4 @@
-export const API_URL = "http://localhost:8000";
+export const API_URL = "";
 
 /**
  * Limpia la sesión del usuario en localStorage y redirige al /login.

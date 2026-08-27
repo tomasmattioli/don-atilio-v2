@@ -28,7 +28,7 @@ if defined DT (
     set "TIMESTAMP=%TIMESTAMP: =0%"
 )
 
-set "BACKUP_FILE=backups\backup_%DB_NAME%_%TIMESTAMP%.sql"
+set "BACKUP_FILE=backups\backup_mi_abejita_%TIMESTAMP%.sql"
 
 :: Buscar ejecutable mysqldump
 set "DUMP_EXE=mysqldump"
