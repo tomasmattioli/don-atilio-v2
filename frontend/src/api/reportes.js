@@ -36,3 +36,17 @@ export async function getVentasPorDia(params = {}) {
   if (!response.ok) throw new Error(data.detail || "Error al obtener ventas por día");
   return data;
 }
+
+export async function getReporteProducto(params = {}) {
+  const query = new URLSearchParams();
+  query.append("id_producto", params.id_producto);
+  if (params.fecha_desde) query.append("fecha_desde", params.fecha_desde);
+  if (params.fecha_hasta) query.append("fecha_hasta", params.fecha_hasta);
+
+  const response = await fetch(`${API_URL}/reportes/producto?${query.toString()}`, {
+    headers: getHeaders(),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.detail || "Error al obtener reporte de producto");
+  return data;
+}

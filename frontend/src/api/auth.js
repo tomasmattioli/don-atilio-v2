@@ -1,4 +1,4 @@
-import { API_URL } from "./client";
+import { API_URL, getHeaders } from "./client";
 
 export async function login(nombre, contrasena) {
   const response = await fetch(`${API_URL}/auth/login`, {
@@ -14,4 +14,16 @@ export async function login(nombre, contrasena) {
   }
 
   return data;
+}
+
+export async function logout() {
+  try {
+    await fetch(`${API_URL}/auth/logout`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+  } catch {
+    // Si falla la red al hacer logout (ej. sesión ya expirada), lo ignoramos silenciosamente.
+    // El token local se borra de todas formas.
+  }
 }

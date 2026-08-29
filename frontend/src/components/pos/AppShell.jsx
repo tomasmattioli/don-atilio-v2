@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
+import { logout as apiLogout } from "../../api/auth";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import Box from "@mui/material/Box";
@@ -66,7 +67,8 @@ export function AppShell({ children }) {
 
   const activeLabel = NAV_ITEMS.find((item) => item.key === activeKey)?.label ?? "";
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await apiLogout();
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
     navigate("/login", { replace: true });

@@ -29,6 +29,7 @@ import {
   Divider,
   Tooltip,
   Snackbar,
+  Autocomplete,
 } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
@@ -43,11 +44,13 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PrintIcon from "@mui/icons-material/Print";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import BarChartIcon from "@mui/icons-material/BarChart";
 
 import { getVentas } from "../api/ventas";
 import { getHistorialTurnos, getCajeros } from "../api/caja";
 import { imprimirTicket, imprimirTicketCierre, imprimirTicketResumen } from "../api/impresion";
-import { getReportePeriodo } from "../api/reportes";
+import { getReportePeriodo, getReporteProducto } from "../api/reportes";
+import { getProductos } from "../api/catalogo";
 
 // ── Helpers de formato ────────────────────────────────────────────────────────
 function fmt(val) {
@@ -919,9 +922,9 @@ function TurnoRow({ turno, onNotificar }) {
 
 // ── Componente Principal: HistorialPage ───────────────────────────────────────
 export default function HistorialPage() {
-  const [tabActual, setTabActual] = useState(0); // 0: Ventas, 1: Turnos
+  const [tabActual, setTabActual] = useState(0); // 0: Ventas, 1: Turnos, 2: Por Producto
 
-  // Filtros
+  // Filtros compartidos
   const todayStr = toISODateString(new Date());
   const [fechaDesde, setFechaDesde] = useState(todayStr);
   const [fechaHasta, setFechaHasta] = useState(todayStr);
@@ -934,6 +937,14 @@ export default function HistorialPage() {
   const [cajeros, setCajeros] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+
+  // Estado: Por Producto
+  const [catalogoProductos, setCatalogoProductos] = useState([]);
+  const [productoSeleccionado, setProductoSeleccionado] = useState(null);
+  const [inputBusqueda, setInputBusqueda] = useState("");
+  const [resultadoProducto, setResultadoProducto] = useState(null);
+  const [cargandoProducto, setCargandoProducto] = useState(false);
+  const [errorProducto, setErrorProducto] = useState("");
 
   // Acciones y feedback
   const [imprimiendoResumen, setImprimiendoResumen] = useState(false);
@@ -950,6 +961,33 @@ export default function HistorialPage() {
       .then(setCajeros)
       .catch((e) => console.warn("Error al cargar cajeros:", e));
   }, []);
+
+  // Cargar catálogo de productos para el autocomplete (tab 2)
+  useEffect(() => {
+    if (tabActual === 2 && catalogoProductos.length === 0) {
+      getProductos({ solo_activos: false })
+        .then(setCatalogoProductos)
+        .catch((e) => console.warn("Error al cargar catálogo:", e));
+    }
+  }, [tabActual]);
+
+  // Buscar reporte cuando cambia producto o fechas (tab 2)
+  useEffect(() => {
+    if (tabActual !== 2 || !productoSeleccionado) {
+      setResultadoProducto(null);
+      return;
+    }
+    setCargandoProducto(true);
+    setErrorProducto("");
+    getReporteProducto({
+      id_producto: productoSeleccionado.id_producto,
+      fecha_desde: fechaDesde || undefined,
+      fecha_hasta: fechaHasta || undefined,
+    })
+      .then(setResultadoProducto)
+      .catch((e) => setErrorProducto(e.message))
+      .finally(() => setCargandoProducto(false));
+  }, [tabActual, productoSeleccionado, fechaDesde, fechaHasta]);
 
   // Función para cargar datos según filtros
   const cargarDatos = useCallback(async () => {
@@ -1149,6 +1187,12 @@ export default function HistorialPage() {
               icon={<PointOfSaleIcon sx={{ fontSize: 18 }} />}
               iconPosition="start"
               label="Turnos de Caja"
+              sx={{ minHeight: 38, py: 0.75, fontWeight: 700, fontSize: "0.85rem" }}
+            />
+            <Tab
+              icon={<BarChartIcon sx={{ fontSize: 18 }} />}
+              iconPosition="start"
+              label="Por Producto"
               sx={{ minHeight: 38, py: 0.75, fontWeight: 700, fontSize: "0.85rem" }}
             />
           </Tabs>
@@ -1404,6 +1448,7 @@ export default function HistorialPage() {
       )}
 
       {/* Barra de Acciones de Exportación e Impresión */}
+      {tabActual !== 2 && (
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1.5, mb: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography variant="subtitle1" fontWeight={700}>
@@ -1451,9 +1496,11 @@ export default function HistorialPage() {
           )}
         </Stack>
       </Box>
+      )}
+
 
       {/* Contenedor de Tablas con Indicador de Carga */}
-      {cargando ? (
+      {cargando && tabActual !== 2 ? (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 8 }}>
           <CircularProgress />
         </Box>
@@ -1494,7 +1541,7 @@ export default function HistorialPage() {
             </Paper>
           )}
         </Box>
-      ) : (
+      ) : tabActual === 1 ? (
         // ── TAB 1: TURNOS DE CAJA ───────────────────────────────────────────────
         <Box>
           {turnos.length === 0 ? (
@@ -1532,7 +1579,114 @@ export default function HistorialPage() {
             </Paper>
           )}
         </Box>
+      ) : (
+        // ── TAB 2: POR PRODUCTO ──────────────────────────────────────────────────
+        <Box>
+          <Card sx={{ mb: 3 }}>
+            <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+              <Typography variant="subtitle2" color="text.secondary" fontWeight={700} mb={1.5}>
+                Buscá un producto del catálogo para consultar sus ventas en el período seleccionado
+              </Typography>
+              <Autocomplete
+                options={catalogoProductos}
+                getOptionLabel={(opt) => opt.nombre || ""}
+                isOptionEqualToValue={(opt, val) => opt.id_producto === val.id_producto}
+                value={productoSeleccionado}
+                onChange={(_, newVal) => {
+                  setProductoSeleccionado(newVal);
+                  setResultadoProducto(null);
+                }}
+                inputValue={inputBusqueda}
+                onInputChange={(_, newInput) => setInputBusqueda(newInput)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Buscar producto..."
+                    placeholder="Escribí el nombre del producto"
+                    size="small"
+                    sx={{ maxWidth: 480 }}
+                  />
+                )}
+                noOptionsText="Sin coincidencias"
+                loadingText="Cargando..."
+                filterOptions={(options, { inputValue }) => {
+                  const q = inputValue.toLowerCase();
+                  return options.filter((o) => o.nombre.toLowerCase().includes(q));
+                }}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Resultado */}
+          {cargandoProducto && (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+              <CircularProgress />
+            </Box>
+          )}
+
+          {errorProducto && !cargandoProducto && (
+            <Alert severity="error" sx={{ mb: 2 }}>{errorProducto}</Alert>
+          )}
+
+          {!productoSeleccionado && !cargandoProducto && (
+            <Paper variant="outlined" sx={{ p: 4, textAlign: "center", bgcolor: "#FFFFFF" }}>
+              <BarChartIcon sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
+              <Typography color="text.secondary">
+                Seleccioná un producto para ver sus estadísticas de venta en el período elegido.
+              </Typography>
+            </Paper>
+          )}
+
+          {resultadoProducto && !cargandoProducto && (
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" fontWeight={700} color="primary.main" mb={0.5}>
+                  {resultadoProducto.nombre_producto}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Período: {resultadoProducto.fecha_desde ? new Date(resultadoProducto.fecha_desde + "T00:00:00").toLocaleDateString("es-AR") : "Inicio"}{" "}
+                  al {resultadoProducto.fecha_hasta ? new Date(resultadoProducto.fecha_hasta + "T00:00:00").toLocaleDateString("es-AR") : "Hoy"}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={4}>
+                <Card sx={{ bgcolor: "#FFFFFF", borderLeft: "4px solid #16324F" }}>
+                  <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                      CANTIDAD TOTAL VENDIDA
+                    </Typography>
+                    <Typography variant="h4" fontWeight={800} color="primary.main" sx={{ fontFeatureSettings: '"tnum" 1', mt: 0.5 }}>
+                      {parseFloat(resultadoProducto.cantidad_total) % 1 === 0
+                        ? parseFloat(resultadoProducto.cantidad_total)
+                        : parseFloat(resultadoProducto.cantidad_total).toFixed(3)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      unidades / kg en el período
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={4}>
+                <Card sx={{ bgcolor: "#FFFFFF", borderLeft: "4px solid #059669" }}>
+                  <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                      TOTAL FACTURADO
+                    </Typography>
+                    <Typography variant="h4" fontWeight={800} color="success.main" sx={{ fontFeatureSettings: '"tnum" 1', mt: 0.5 }}>
+                      {fmt(resultadoProducto.total_facturado)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      por este producto en el período
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          )}
+        </Box>
       )}
+
 
       {/* Snackbar de notificaciones */}
       <Snackbar

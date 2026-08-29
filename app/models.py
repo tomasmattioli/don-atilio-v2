@@ -42,6 +42,10 @@ class Usuario(Base):
     fecha_creacion = Column(TIMESTAMP, server_default=func.now())
     ultimo_acceso = Column(TIMESTAMP, server_default=func.now())
 
+    # Sesión única — jti del token activo y su fecha de expiración
+    sesion_jti = Column(String(64), nullable=True, default=None)
+    sesion_expira = Column(DateTime, nullable=True, default=None)
+
     id_rol = Column(Integer, ForeignKey("roles.id_rol"), nullable=False)
 
     rol = relationship("Rol", back_populates="usuarios")

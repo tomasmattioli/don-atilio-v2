@@ -1,4 +1,5 @@
 import os
+import uuid
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from jose import JWTError, jwt
@@ -21,11 +22,14 @@ def verificar_password(password_plano: str, password_hash: str) -> bool:
 def hashear_password(password: str) -> str:
     return pwd_context.hash(password)
 
-def crear_token(data: dict) -> str:
-    payload = data.copy()
+def crear_token(data: dict) -> tuple[str, str, datetime]:
+    """Crea un JWT. Devuelve (token, jti, expira)."""
+    jti = str(uuid.uuid4()).replace("-", "")[:32]
     expira = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload.update({"exp": expira})
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    payload = data.copy()
+    payload.update({"exp": expira, "jti": jti})
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return token, jti, expira.replace(tzinfo=None)  # expira como naive datetime para MariaDB
 
 def decodificar_token(token: str) -> dict | None:
     try:
@@ -45,4 +49,3 @@ def exigir_admin(user_id: int, db) -> None:
     u = db.query(models.Usuario).filter(models.Usuario.id_usuario == user_id).first()
     if not u or u.id_rol != 1:
         raise HTTPException(status_code=403, detail="Solo el administrador puede realizar esta acción")
-

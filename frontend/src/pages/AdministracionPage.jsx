@@ -15,6 +15,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import GroupIcon from "@mui/icons-material/Group";
 import CategoryIcon from "@mui/icons-material/Category";
 import KeyboardIcon from "@mui/icons-material/Keyboard";
+import LogoutIcon from "@mui/icons-material/Logout";
 
 import { API_URL, getHeaders } from "../api/client";
 import { useConfirm } from "../context/ConfirmContext";
@@ -412,6 +413,20 @@ export default function AdministracionPage() {
     setMensajeExito(`Contraseña de "${actualizado.nombre}" actualizada.`);
   };
 
+  const forzarLogoutUsuario = async (usuario) => {
+    try {
+      const res = await fetch(`${API_URL}/usuarios/${usuario.id_usuario}/forzar-logout`, {
+        method: "POST",
+        headers: getHeaders(false),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Error al forzar cierre de sesión");
+      setMensajeExito(`Sesión de "${usuario.nombre}" cerrada forzosamente.`);
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
   // Acciones Categorías
   const abrirCrearCategoria = () => {
     setCategoriaEditando(null);
@@ -567,15 +582,26 @@ export default function AdministracionPage() {
                         </IconButton>
                       </Tooltip>
                       {u.id_usuario !== meId && (
-                        <Tooltip title={u.activo ? "Desactivar" : "Reactivar"}>
-                          <IconButton
-                            size="small"
-                            color={u.activo ? "error" : "success"}
-                            onClick={() => toggleActivoUsuario(u)}
-                          >
-                            {u.activo ? <BlockIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />}
-                          </IconButton>
-                        </Tooltip>
+                        <>
+                          <Tooltip title={u.activo ? "Desactivar" : "Reactivar"}>
+                            <IconButton
+                              size="small"
+                              color={u.activo ? "error" : "success"}
+                              onClick={() => toggleActivoUsuario(u)}
+                            >
+                              {u.activo ? <BlockIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />}
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Forzar cierre de sesión activa">
+                            <IconButton
+                              size="small"
+                              color="warning"
+                              onClick={() => forzarLogoutUsuario(u)}
+                            >
+                              <LogoutIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </>
                       )}
                     </TableCell>
                   </TableRow>

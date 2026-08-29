@@ -11,13 +11,45 @@ router = APIRouter(tags=["Usuarios y Auth"])
 # --- LOGIN (público — sin token) ---
 @router.post("/auth/login", response_model=schemas.TokenResponse)
 def login(datos: schemas.LoginRequest, db: Session = Depends(get_db)):
+    from datetime import datetime
     usuario = db.query(models.Usuario).filter(models.Usuario.nombre == datos.nombre).first()
     if not usuario or not auth.verificar_password(datos.contraseña, usuario.contraseña):
         raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
     if not usuario.activo:
         raise HTTPException(status_code=403, detail="Usuario desactivado")
-    token = auth.crear_token({"sub": str(usuario.id_usuario), "rol": usuario.rol.nombre})
+
+    # Verificar sesión única: rechazar si hay un jti activo que todavía no venció
+    ahora = datetime.utcnow()
+    if usuario.sesion_jti and usuario.sesion_expira and usuario.sesion_expira > ahora:
+        raise HTTPException(
+            status_code=409,
+            detail="Esta cuenta ya tiene una sesión activa. Cerrala antes de continuar."
+        )
+
+    token, jti, expira = auth.crear_token({"sub": str(usuario.id_usuario), "rol": usuario.rol.nombre})
+
+    # Registrar el nuevo jti como sesión activa
+    usuario.sesion_jti = jti
+    usuario.sesion_expira = expira
+    db.commit()
+
     return {"access_token": token, "usuario": usuario}
+
+
+# --- LOGOUT (requiere token) ---
+@router.post("/auth/logout")
+def logout(
+    user_id: int = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Libera la sesión activa del usuario para que pueda volver a loguear desde otro lado."""
+    usuario = db.query(models.Usuario).filter(models.Usuario.id_usuario == user_id).first()
+    if usuario:
+        usuario.sesion_jti = None
+        usuario.sesion_expira = None
+        db.commit()
+    return {"ok": True}
+
 
 # --- ROLES ---
 @router.get("/roles", response_model=List[schemas.RolResponse])
@@ -120,6 +152,23 @@ def cambiar_password(
     db.commit()
     db.refresh(usuario)
     return usuario
+
+
+@router.post("/usuarios/{id_usuario}/forzar-logout")
+def forzar_logout(
+    id_usuario: int,
+    user_id: int = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Admin: libera la sesión activa de un usuario trabado (ventana cerrada sin logout)."""
+    _solo_admin(user_id, db)
+    usuario = db.query(models.Usuario).filter(models.Usuario.id_usuario == id_usuario).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    usuario.sesion_jti = None
+    usuario.sesion_expira = None
+    db.commit()
+    return {"ok": True}
 
 import os
 import subprocess

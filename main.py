@@ -1,9 +1,26 @@
 from fastapi import FastAPI
+from sqlalchemy import text, inspect
 
 from app.database.database import engine
 from app import models
 
 models.Base.metadata.create_all(bind=engine)
+
+# ── Auto-migración: agregar columnas de sesión única si no existen ─────────────
+def _auto_migrar_columnas():
+    inspector = inspect(engine)
+    columnas_existentes = {c["name"] for c in inspector.get_columns("usuarios")}
+    migraciones = []
+    if "sesion_jti" not in columnas_existentes:
+        migraciones.append("ALTER TABLE usuarios ADD COLUMN sesion_jti VARCHAR(64) NULL DEFAULT NULL")
+    if "sesion_expira" not in columnas_existentes:
+        migraciones.append("ALTER TABLE usuarios ADD COLUMN sesion_expira DATETIME NULL DEFAULT NULL")
+    if migraciones:
+        with engine.begin() as conn:
+            for sql in migraciones:
+                conn.execute(text(sql))
+
+_auto_migrar_columnas()
 
 # Inicializamos la aplicación FastAPI
 app = FastAPI(title="Mi Abejita API", version="2.0")

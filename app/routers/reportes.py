@@ -351,3 +351,55 @@ def ventas_por_dia(
 
     return resultado
 
+
+# ── Reporte por Producto ────────────────────────────────────────────────────────
+class ReporteProductoResponse(BaseModel):
+    id_producto: int
+    nombre_producto: str
+    fecha_desde: Optional[str]
+    fecha_hasta: Optional[str]
+    cantidad_total: Decimal
+    total_facturado: Decimal
+
+
+@router.get("/producto", response_model=ReporteProductoResponse)
+def reporte_por_producto(
+    id_producto: int = Query(..., description="ID del producto a consultar"),
+    fecha_desde: Optional[date] = Query(None, description="Fecha inicio (YYYY-MM-DD)"),
+    fecha_hasta: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
+    user_id: int = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Devuelve cantidad total vendida y total facturado de un producto en un rango de fechas."""
+    producto = db.query(models.Producto).filter(models.Producto.id_producto == id_producto).first()
+    if not producto:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    q = (
+        db.query(
+            func.sum(models.DetalleVenta.cantidad).label("cantidad_total"),
+            func.sum(models.DetalleVenta.cantidad * models.DetalleVenta.precio_unitario).label("total_facturado"),
+        )
+        .join(models.Venta, models.DetalleVenta.id_venta == models.Venta.id_venta)
+        .filter(
+            models.DetalleVenta.id_producto == id_producto,
+            models.Venta.estado == models.EstadoVenta.completada,
+        )
+    )
+    if fecha_desde:
+        q = q.filter(func.date(models.Venta.fecha) >= fecha_desde)
+    if fecha_hasta:
+        q = q.filter(func.date(models.Venta.fecha) <= fecha_hasta)
+
+    row = q.one()
+
+    return ReporteProductoResponse(
+        id_producto=id_producto,
+        nombre_producto=producto.nombre,
+        fecha_desde=str(fecha_desde) if fecha_desde else None,
+        fecha_hasta=str(fecha_hasta) if fecha_hasta else None,
+        cantidad_total=row.cantidad_total or Decimal("0"),
+        total_facturado=row.total_facturado or Decimal("0"),
+    )
+
