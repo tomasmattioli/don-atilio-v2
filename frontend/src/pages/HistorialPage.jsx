@@ -1288,30 +1288,32 @@ export default function HistorialPage() {
             </Grid>
 
             {/* Filtro por Vendedor */}
-            <Grid item xs={12} sm={4} md sx={{ minWidth: { sm: 180, md: 200 } }}>
-              <Box sx={{ display: "flex", flexDirection: "column" }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: "block", mb: 0.75 }}>
-                  Vendedor
-                </Typography>
-                <FormControl fullWidth size="small">
-                  <Select
-                    value={vendedorSeleccionado}
-                    onChange={(e) => setVendedorSeleccionado(e.target.value)}
-                    displayEmpty
-                    sx={{ height: 38 }}
-                  >
-                    <MenuItem value="">
-                      <em>Todos los vendedores</em>
-                    </MenuItem>
-                    {cajeros.map((u) => (
-                      <MenuItem key={u.id_usuario} value={u.id_usuario}>
-                        {u.nombre}
+            {tabActual !== 2 && (
+              <Grid item xs={12} sm={4} md sx={{ minWidth: { sm: 180, md: 200 } }}>
+                <Box sx={{ display: "flex", flexDirection: "column" }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: "block", mb: 0.75 }}>
+                    Vendedor
+                  </Typography>
+                  <FormControl fullWidth size="small">
+                    <Select
+                      value={vendedorSeleccionado}
+                      onChange={(e) => setVendedorSeleccionado(e.target.value)}
+                      displayEmpty
+                      sx={{ height: 38 }}
+                    >
+                      <MenuItem value="">
+                        <em>Todos los vendedores</em>
                       </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-            </Grid>
+                      {cajeros.map((u) => (
+                        <MenuItem key={u.id_usuario} value={u.id_usuario}>
+                          {u.nombre}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Grid>
+            )}
 
             {/* Botones de Acción de Filtro */}
             <Grid item xs={12} sm={2} md="auto">
