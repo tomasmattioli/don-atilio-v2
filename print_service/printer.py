@@ -155,81 +155,68 @@ class TicketPrinter:
         """Arma e imprime el ticket completo usando comandos ESC/POS profesionales."""
         p = obtener_instancia_impresora()
         ancho = self.ancho
-        
+
         try:
-            # 1. Encabezado del negocio (Centrado)
-            p.set(align="center", bold=True, double_height=True, double_width=True)
-            p.text(f"{settings.BUSINESS_NAME}\n")
-            
+            # 1. Encabezado del negocio — nombre en negrita normal, sin doble altura
             p.set(align="center", bold=True, double_height=False, double_width=False)
+            p.text(f"{settings.BUSINESS_NAME}\n")
             if settings.BUSINESS_SUBTITLE:
                 p.text(f"{settings.BUSINESS_SUBTITLE}\n")
-            p.set(align="center", bold=False, double_height=False, double_width=False)
+            p.set(align="center", bold=False)
             if settings.BUSINESS_ADDRESS:
                 p.text(f"{settings.BUSINESS_ADDRESS}\n")
             if settings.BUSINESS_PHONE:
                 p.text(f"{settings.BUSINESS_PHONE}\n")
             if settings.BUSINESS_CUIT:
                 p.text(f"{settings.BUSINESS_CUIT}\n")
-                
             p.text("=" * ancho + "\n")
-            
+
             # 2. Identificación del tipo de ticket
             if settings.TICKET_TITLE:
-                p.set(align="center", bold=True, double_height=False, double_width=False)
+                p.set(align="center", bold=True)
                 p.text(f"{settings.TICKET_TITLE}\n")
+                p.set(align="left", bold=False)
                 p.text("-" * ancho + "\n")
-            
-            # 2. Metadatos de la venta (Fecha, Ticket, Vendedor, Cliente)
+
+            # 3. Metadatos de la venta
             p.set(align="left", bold=False)
             fecha_dt = datos.fecha or datetime.now()
             fecha_str = fecha_dt.strftime("%d/%m/%Y %H:%M")
             num_tkt = datos.numero_ticket or (f"#{datos.id_venta:06d}" if datos.id_venta else "#000000")
-            
             p.text(ajustar_dos_columnas(f"Fecha: {fecha_str}", f"Ticket: {num_tkt}", ancho) + "\n")
-            
             vendedor_str = f"Vendedor: {datos.vendedor or 'Caja'}"
             cliente_str = f"Cliente: {datos.cliente or 'Cons. Final'}"
             p.text(ajustar_dos_columnas(vendedor_str, cliente_str, ancho) + "\n")
-            
             p.text("-" * ancho + "\n")
-            
-            # 3. Lista de Ítems
+
+            # 4. Lista de Ítems
             self._imprimir_items(p, datos.items)
-            
             p.text("-" * ancho + "\n")
-            
-            # 4. Total destacado (Grande y Negrita)
+
+            # 5. Total en negrita, tamaño normal
             total_formateado = formatear_dinero(datos.total)
-            
-            # Línea de TOTAL
-            p.set(align="right", bold=True, double_height=True, double_width=True)
+            p.set(align="right", bold=True, double_height=False, double_width=False)
             p.text(f"TOTAL: {total_formateado}\n")
-            
-            p.set(align="left", bold=False, double_height=False, double_width=False)
-            p.text("=" * ancho + "\n")
-            
-            # 5. Desglose de Pagos Combinados
-            p.set(align="left", bold=True)
-            p.text("FORMA DE PAGO:\n")
             p.set(align="left", bold=False)
-            
+            p.text("=" * ancho + "\n")
+
+            # 6. Desglose de Pagos Combinados
             nombres_metodos = {
                 "efectivo": "Efectivo",
                 "transferencia": "Transferencia",
                 "tarjeta_debito": "Tarjeta Debito",
                 "tarjeta_credito": "Tarjeta Credito",
             }
-            
+            p.set(align="left", bold=True)
+            p.text("FORMA DE PAGO:\n")
+            p.set(align="left", bold=False)
             for pago in datos.pagos:
                 nombre_metodo = nombres_metodos.get(pago.metodo, pago.metodo.capitalize())
                 monto_pago = formatear_dinero(pago.monto)
-                linea_pago = ajustar_dos_columnas(f" - {nombre_metodo}:", monto_pago, ancho)
-                p.text(linea_pago + "\n")
-                    
+                p.text(ajustar_dos_columnas(f" - {nombre_metodo}:", monto_pago, ancho) + "\n")
             p.text("-" * ancho + "\n")
-            
-            # 6. Pie del Ticket
+
+            # 7. Pie del Ticket
             p.set(align="center", bold=False)
             if settings.FOOTER_THANKS:
                 p.text(f"{settings.FOOTER_THANKS}\n")
@@ -237,22 +224,20 @@ class TicketPrinter:
                 p.set(align="center", bold=True)
                 p.text(f"{settings.FOOTER_LEGAL}\n")
                 p.set(align="center", bold=False)
-                
             p.text("=" * ancho + "\n")
-            
-            # 7. Avance de papel y Corte automático
+
+            # 8. Avance de papel y Corte automático
             p.text("\n\n")
             if settings.CUT_PAPER:
                 p.cut()
-                
-            # 8. Apertura de cajón si corresponde
+
+            # 9. Apertura de cajón si corresponde
             if datos.abrir_cajon or settings.OPEN_DRAWER:
                 try:
                     p.cashdraw(2)
                 except Exception as e_cajon:
                     logger.warning(f"No se pudo abrir el cajon de dinero: {e_cajon}")
 
-            # Si es dummy, mostramos salida en logs
             if isinstance(p, Dummy):
                 logger.info("Ticket generado en Dummy:")
 
