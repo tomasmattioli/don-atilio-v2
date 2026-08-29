@@ -403,3 +403,67 @@ def reporte_por_producto(
         total_facturado=row.total_facturado or Decimal("0"),
     )
 
+
+# ── Reporte: todos los productos con sus ventas en el período ───────────────────
+class ProductoVendidoItem(BaseModel):
+    id_producto: int
+    nombre: str
+    cantidad_total: Decimal
+    total_facturado: Decimal
+
+
+@router.get("/productos-vendidos", response_model=List[ProductoVendidoItem])
+def reporte_productos_vendidos(
+    fecha_desde: Optional[date] = Query(None, description="Fecha inicio (YYYY-MM-DD)"),
+    fecha_hasta: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
+    user_id: int = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Devuelve todos los productos con cantidad y total vendido en el período.
+    Productos sin ventas aparecen con 0. Ordenados: mayor facturado primero, ceros al final."""
+
+    # Subquery: sumar ventas por producto dentro del período
+    ventas_q = (
+        db.query(
+            models.DetalleVenta.id_producto.label("id_producto"),
+            func.sum(models.DetalleVenta.cantidad).label("cantidad_total"),
+            func.sum(
+                models.DetalleVenta.cantidad * models.DetalleVenta.precio_unitario
+            ).label("total_facturado"),
+        )
+        .join(models.Venta, models.DetalleVenta.id_venta == models.Venta.id_venta)
+        .filter(
+            models.Venta.estado == models.EstadoVenta.completada,
+            models.DetalleVenta.id_producto.isnot(None),
+        )
+    )
+    if fecha_desde:
+        ventas_q = ventas_q.filter(func.date(models.Venta.fecha) >= fecha_desde)
+    if fecha_hasta:
+        ventas_q = ventas_q.filter(func.date(models.Venta.fecha) <= fecha_hasta)
+
+    ventas_subq = ventas_q.group_by(models.DetalleVenta.id_producto).subquery()
+
+    # LEFT JOIN: todos los productos, con sus totales (NULL → 0 en Python)
+    total_col = func.coalesce(ventas_subq.c.total_facturado, 0)
+    rows = (
+        db.query(
+            models.Producto.id_producto,
+            models.Producto.nombre,
+            func.coalesce(ventas_subq.c.cantidad_total, 0).label("cantidad_total"),
+            total_col.label("total_facturado"),
+        )
+        .outerjoin(ventas_subq, models.Producto.id_producto == ventas_subq.c.id_producto)
+        .order_by(total_col.desc(), models.Producto.nombre.asc())
+        .all()
+    )
+
+    return [
+        ProductoVendidoItem(
+            id_producto=r.id_producto,
+            nombre=r.nombre,
+            cantidad_total=Decimal(str(r.cantidad_total)),
+            total_facturado=Decimal(str(r.total_facturado)),
+        )
+        for r in rows
+    ]
