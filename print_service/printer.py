@@ -157,36 +157,21 @@ class TicketPrinter:
         ancho = self.ancho
 
         try:
-            # 1. Encabezado del negocio — nombre en negrita normal, sin doble altura
+            # 1. Encabezado — solo nombre del negocio, negrita, centrado
             p.set(align="center", bold=True, double_height=False, double_width=False)
             p.text(f"{settings.BUSINESS_NAME}\n")
-            if settings.BUSINESS_SUBTITLE:
-                p.text(f"{settings.BUSINESS_SUBTITLE}\n")
-            p.set(align="center", bold=False)
-            if settings.BUSINESS_ADDRESS:
-                p.text(f"{settings.BUSINESS_ADDRESS}\n")
-            if settings.BUSINESS_PHONE:
-                p.text(f"{settings.BUSINESS_PHONE}\n")
-            if settings.BUSINESS_CUIT:
-                p.text(f"{settings.BUSINESS_CUIT}\n")
             p.text("=" * ancho + "\n")
 
-            # 2. Identificación del tipo de ticket
-            if settings.TICKET_TITLE:
-                p.set(align="center", bold=True)
-                p.text(f"{settings.TICKET_TITLE}\n")
-                p.set(align="left", bold=False)
-                p.text("-" * ancho + "\n")
-
-            # 3. Metadatos de la venta
+            # 2. Metadatos de la venta (tipo de ticket, fecha, vendedor)
             p.set(align="left", bold=False)
             fecha_dt = datos.fecha or datetime.now()
             fecha_str = fecha_dt.strftime("%d/%m/%Y %H:%M")
             num_tkt = datos.numero_ticket or (f"#{datos.id_venta:06d}" if datos.id_venta else "#000000")
-            p.text(ajustar_dos_columnas(f"Fecha: {fecha_str}", f"Ticket: {num_tkt}", ancho) + "\n")
-            vendedor_str = f"Vendedor: {datos.vendedor or 'Caja'}"
-            cliente_str = f"Cliente: {datos.cliente or 'Cons. Final'}"
-            p.text(ajustar_dos_columnas(vendedor_str, cliente_str, ancho) + "\n")
+            if settings.TICKET_TITLE:
+                p.text(ajustar_dos_columnas(settings.TICKET_TITLE, f"Ticket: {num_tkt}", ancho) + "\n")
+            else:
+                p.text(ajustar_dos_columnas(f"Ticket: {num_tkt}", "", ancho) + "\n")
+            p.text(ajustar_dos_columnas(f"Fecha: {fecha_str}", f"Vendedor: {datos.vendedor or 'Caja'}", ancho) + "\n")
             p.text("-" * ancho + "\n")
 
             # 4. Lista de Ítems
@@ -310,13 +295,11 @@ class TicketPrinter:
         
         try:
             # 1. Encabezado
-            p.set(align="center", bold=True, double_height=True)
+            p.set(align="center", bold=True, double_height=False, double_width=False)
             p.text(f"{settings.BUSINESS_NAME}\n")
-            p.set(align="center", bold=True, double_height=False)
+            p.set(align="center", bold=True)
             p.text("CIERRE DE CAJA / TURNO\n")
             p.set(align="center", bold=False)
-            if settings.BUSINESS_ADDRESS:
-                p.text(f"{settings.BUSINESS_ADDRESS}\n")
             p.text("=" * ancho + "\n")
             
             # 2. Datos del Turno y Cajero
@@ -393,9 +376,9 @@ class TicketPrinter:
         
         try:
             # 1. Encabezado
-            p.set(align="center", bold=True, double_height=True)
+            p.set(align="center", bold=True, double_height=False, double_width=False)
             p.text(f"{settings.BUSINESS_NAME}\n")
-            p.set(align="center", bold=True, double_height=False)
+            p.set(align="center", bold=True)
             p.text(f"{datos.titulo or 'RESUMEN DE VENTAS'}\n")
             p.set(align="center", bold=False)
             p.text("=" * ancho + "\n")
@@ -414,9 +397,9 @@ class TicketPrinter:
             # 2. Totales
             p.set(align="left", bold=True)
             p.text(ajustar_dos_columnas("Ventas Realizadas:", str(datos.cantidad_ventas), ancho) + "\n")
-            p.set(align="left", bold=True, double_height=True)
+            p.set(align="left", bold=True)
             p.text(ajustar_dos_columnas("TOTAL RECAUDADO:", formatear_dinero(datos.total_ventas), ancho) + "\n")
-            p.set(align="left", bold=False, double_height=False)
+            p.set(align="left", bold=False)
             p.text("-" * ancho + "\n")
             
             # 3. Desglose Medios de Pago
