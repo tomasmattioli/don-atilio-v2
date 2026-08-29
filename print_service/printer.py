@@ -206,9 +206,9 @@ class TicketPrinter:
             if settings.FOOTER_THANKS:
                 p.text(f"{settings.FOOTER_THANKS}\n")
             if settings.FOOTER_LEGAL:
-                p.set(align="center", bold=True)
+                p.set(align="center", bold=False, font="b")
                 p.text(f"{settings.FOOTER_LEGAL}\n")
-                p.set(align="center", bold=False)
+                p.set(align="center", bold=False, font="a")
             p.text("=" * ancho + "\n")
 
             # 8. Avance de papel y Corte automático
