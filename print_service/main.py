@@ -39,10 +39,15 @@ app.add_middleware(
 def estado_servicio():
     """Consulta el estado del servicio y las impresoras detectadas."""
     impresoras = listar_impresoras_sistema()
+    printer_display = (
+        buscar_impresora_windows(settings.PRINTER_NAME)
+        if settings.PRINTER_DRIVER == "win32raw"
+        else settings.PRINTER_NAME
+    )
     return StatusResponse(
         status="online",
         printer_driver=settings.PRINTER_DRIVER,
-        printer_name=buscar_impresora_windows(settings.PRINTER_NAME) if settings.PRINTER_DRIVER == "win32raw" else settings.PRINTER_NAME,
+        printer_name=printer_display,
         paper_width=settings.PAPER_CHARS,
         printers_detected=impresoras
     )

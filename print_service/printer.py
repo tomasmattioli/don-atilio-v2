@@ -4,7 +4,7 @@ from typing import List, Optional
 from decimal import Decimal
 from datetime import datetime
 
-from escpos.printer import Dummy, Network, Serial, Usb, Win32Raw
+from escpos.printer import Dummy, Network, Serial, Usb
 from print_service.config import settings
 from print_service.schemas import (
     TicketPayload,
@@ -84,6 +84,13 @@ def obtener_instancia_impresora():
     driver = settings.PRINTER_DRIVER.lower()
     
     if driver == "win32raw":
+        try:
+            from escpos.printer import Win32Raw
+        except ImportError:
+            raise RuntimeError(
+                "El driver 'win32raw' requiere pywin32, que solo está disponible en Windows. "
+                "En Linux usá PRINTER_DRIVER=usb en el .env."
+            )
         nombre = buscar_impresora_windows(settings.PRINTER_NAME)
         logger.info(f"Conectando a impresora Windows Win32Raw: '{nombre}'")
         return Win32Raw(printer_name=nombre)
