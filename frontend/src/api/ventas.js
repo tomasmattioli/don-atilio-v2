@@ -43,3 +43,29 @@ export async function getVentaDetalle(id_venta) {
   return data;
 }
 
+export async function getResumenABorrar(params = {}) {
+  const query = new URLSearchParams();
+  if (params.fecha_desde) query.append("fecha_desde", params.fecha_desde);
+  if (params.fecha_hasta) query.append("fecha_hasta", params.fecha_hasta);
+  const qs = query.toString() ? `?${query.toString()}` : "";
+  const response = await fetch(`${API_URL}/ventas/resumen-a-borrar${qs}`, {
+    headers: getHeaders(),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.detail || "Error al obtener resumen");
+  return data; // { cantidad_ventas, monto_total }
+}
+
+export async function limpiarVentas(params = {}) {
+  const query = new URLSearchParams();
+  if (params.fecha_desde) query.append("fecha_desde", params.fecha_desde);
+  if (params.fecha_hasta) query.append("fecha_hasta", params.fecha_hasta);
+  const qs = query.toString() ? `?${query.toString()}` : "";
+  const response = await fetch(`${API_URL}/ventas/limpiar${qs}`, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.detail || "Error al limpiar ventas");
+  return data; // { ventas_borradas, detalles_borrados, pagos_borrados, monto_total }
+}

@@ -197,3 +197,16 @@ class VentaResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+# --- LIMPIEZA DE VENTAS ---
+class LimpiezaResumen(BaseModel):
+    """Respuesta del endpoint de vista previa (GET /ventas/resumen-a-borrar)."""
+    cantidad_ventas: int
+    monto_total: Decimal
+
+class LimpiezaResultado(BaseModel):
+    """Respuesta del endpoint de borrado (DELETE /ventas/limpiar)."""
+    ventas_borradas: int
+    detalles_borrados: int
+    pagos_borrados: int
+    monto_total: Decimal

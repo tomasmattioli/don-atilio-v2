@@ -184,6 +184,103 @@ def listar_ventas(
     return [_construir_venta_response(v, db) for v in ventas]
 
 
+# ── Helpers de limpieza ───────────────────────────────────────────────────────
+
+def _filtro_ventas_por_rango(query, fecha_desde: Optional[date], fecha_hasta: Optional[date]):
+    """Aplica filtros de fecha a una query de Venta. Sin fechas = todas."""
+    if fecha_desde:
+        query = query.filter(func.date(models.Venta.fecha) >= fecha_desde)
+    if fecha_hasta:
+        query = query.filter(func.date(models.Venta.fecha) <= fecha_hasta)
+    return query
+
+
+@router.get("/resumen-a-borrar", response_model=schemas.LimpiezaResumen)
+def resumen_a_borrar(
+    fecha_desde: Optional[date] = Query(None, description="Fecha inicio (YYYY-MM-DD)"),
+    fecha_hasta: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
+    user_id_jwt: int = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Vista previa: cuántas ventas y por cuánto monto se borrarían con el filtro dado. No modifica nada."""
+    auth.exigir_admin(user_id_jwt, db)
+
+    query = db.query(
+        func.count(models.Venta.id_venta),
+        func.coalesce(func.sum(models.Venta.total), 0),
+    )
+    query = _filtro_ventas_por_rango(query, fecha_desde, fecha_hasta)
+    cantidad, monto = query.one()
+
+    return schemas.LimpiezaResumen(
+        cantidad_ventas=int(cantidad),
+        monto_total=monto,
+    )
+
+
+@router.delete("/limpiar", response_model=schemas.LimpiezaResultado)
+def limpiar_ventas(
+    fecha_desde: Optional[date] = Query(None, description="Fecha inicio (YYYY-MM-DD). Sin valor = sin límite."),
+    fecha_hasta: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD). Sin valor = sin límite."),
+    user_id_jwt: int = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Borra ventas, sus ítems (detalle_ventas) y sus pagos (venta_pagos) dentro del rango indicado.
+    Si no se especifica ninguna fecha, borra TODAS las ventas.
+    Opera en una sola transacción: si algo falla, nada queda a medias.
+    Stock e inventario NO se tocan. Turnos de caja (caja_sessions) NO se tocan.
+    Solo accesible para Admin (rol 1).
+    """
+    auth.exigir_admin(user_id_jwt, db)
+
+    # 1. Obtener IDs y totales de ventas a borrar según el filtro
+    venta_query = db.query(models.Venta.id_venta, models.Venta.total)
+    venta_query = _filtro_ventas_por_rango(venta_query, fecha_desde, fecha_hasta)
+    ventas_a_borrar = venta_query.all()
+
+    if not ventas_a_borrar:
+        return schemas.LimpiezaResultado(
+            ventas_borradas=0,
+            detalles_borrados=0,
+            pagos_borrados=0,
+            monto_total=Decimal("0.00"),
+        )
+
+    ids = [v.id_venta for v in ventas_a_borrar]
+    monto_total = sum(v.total for v in ventas_a_borrar)
+
+    # 2. Borrar ítems y pagos primero (FK → ventas), luego las ventas.
+    #    Todo en la misma transacción implícita de SQLAlchemy.
+    pagos_borrados = (
+        db.query(models.VentaPago)
+        .filter(models.VentaPago.id_venta.in_(ids))
+        .delete(synchronize_session=False)
+    )
+    detalles_borrados = (
+        db.query(models.DetalleVenta)
+        .filter(models.DetalleVenta.id_venta.in_(ids))
+        .delete(synchronize_session=False)
+    )
+    ventas_borradas = (
+        db.query(models.Venta)
+        .filter(models.Venta.id_venta.in_(ids))
+        .delete(synchronize_session=False)
+    )
+
+    # 3. Un único commit — si algo falló arriba, esto lanza excepción y nada se persiste
+    db.commit()
+
+    return schemas.LimpiezaResultado(
+        ventas_borradas=ventas_borradas,
+        detalles_borrados=detalles_borrados,
+        pagos_borrados=pagos_borrados,
+        monto_total=monto_total,
+    )
+
+
+# ── Ruta con parámetro dinámico — debe ir DESPUÉS de todas las rutas fijas ────
+
 @router.get("/{id_venta}", response_model=schemas.VentaResponse)
 def obtener_venta(
     id_venta: int,
@@ -199,4 +296,3 @@ def obtener_venta(
     if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
     return _construir_venta_response(venta, db)
-

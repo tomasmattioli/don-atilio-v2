@@ -3,7 +3,7 @@ import {
   Box, Typography, Table, TableHead, TableRow, TableCell, TableBody,
   Paper, Chip, Button, Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Select, MenuItem, FormControl, InputLabel, Alert,
-  CircularProgress, IconButton, Tooltip, Tabs, Tab
+  CircularProgress, IconButton, Tooltip, Tabs, Tab, Divider, Stack
 } from "@mui/material";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import LockResetIcon from "@mui/icons-material/LockReset";
@@ -16,6 +16,9 @@ import GroupIcon from "@mui/icons-material/Group";
 import CategoryIcon from "@mui/icons-material/Category";
 import KeyboardIcon from "@mui/icons-material/Keyboard";
 import LogoutIcon from "@mui/icons-material/Logout";
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import SearchIcon from "@mui/icons-material/Search";
 
 import { API_URL, getHeaders } from "../api/client";
 import { useConfirm } from "../context/ConfirmContext";
@@ -26,6 +29,7 @@ import {
   toggleEstadoCategoria,
   eliminarCategoria
 } from "../api/catalogo";
+import { getResumenABorrar, limpiarVentas } from "../api/ventas";
 
 const ATAJOS_DISPONIBLES = [
   "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"
@@ -328,6 +332,272 @@ function CategoriaDialog({ open, categoria, categoriasExistentes, onClose, onGua
   );
 }
 
+// ── Dialog: Confirmación con texto obligatorio ──────────────────────────────
+function ConfirmacionTextoDialog({ open, onClose, onConfirm, resumen, modoTotal }) {
+  const palabraClave = modoTotal ? "BORRAR TODO EL HISTORIAL" : "BORRAR";
+  const [texto, setTexto] = useState("");
+  const [cargando, setCargando] = useState(false);
+
+  const handleConfirmar = async () => {
+    if (texto !== palabraClave) return;
+    setCargando(true);
+    try {
+      await onConfirm();
+    } finally {
+      setCargando(false);
+      setTexto("");
+    }
+  };
+
+  const handleClose = () => { setTexto(""); onClose(); };
+
+  const fmt = (val) => {
+    const num = parseFloat(val ?? 0);
+    return `$${num.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1, color: "error.main", fontWeight: "bold" }}>
+        <WarningAmberIcon /> Confirmar borrado permanente
+      </DialogTitle>
+      <DialogContent>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+          <Alert severity="error" icon={<WarningAmberIcon />}>
+            <Typography fontWeight="bold">
+              Se borrarán permanentemente {resumen?.cantidad_ventas ?? "—"} venta(s) por un total de {fmt(resumen?.monto_total)}.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+              Esta acción no se puede deshacer. El stock y los turnos de caja no serán afectados.
+            </Typography>
+          </Alert>
+          <Typography variant="body2">
+            Para confirmar, escribí exactamente: <strong>{palabraClave}</strong>
+          </Typography>
+          <TextField
+            label="Escribí la confirmación"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            fullWidth
+            autoComplete="off"
+            error={texto.length > 0 && texto !== palabraClave}
+            helperText={texto.length > 0 && texto !== palabraClave ? `Escribí exactamente: ${palabraClave}` : ""}
+          />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={cargando}>Cancelar</Button>
+        <Button
+          variant="contained"
+          color="error"
+          disabled={texto !== palabraClave || cargando}
+          onClick={handleConfirmar}
+          startIcon={cargando ? <CircularProgress size={16} color="inherit" /> : <DeleteSweepIcon />}
+        >
+          {cargando ? "Borrando…" : "Confirmar borrado"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// ── Tab: Limpieza de ventas históricas ────────────────────────────────────────
+function LimpiezaVentasTab({ setMensajeExito, setError }) {
+  const hoy = new Date();
+  const toISO = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const [modoTotal, setModoTotal] = useState(false);
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState(toISO(hoy));
+  const [resumen, setResumen] = useState(null);
+  const [cargandoResumen, setCargandoResumen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [resultado, setResultado] = useState(null);
+
+  const fmt = (val) => {
+    const num = parseFloat(val ?? 0);
+    return `$${num.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const cargarResumen = async (esTotal) => {
+    setCargandoResumen(true);
+    setResumen(null);
+    setResultado(null);
+    try {
+      const params = esTotal ? {} : { fecha_desde: fechaDesde || undefined, fecha_hasta: fechaHasta || undefined };
+      const data = await getResumenABorrar(params);
+      setResumen(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCargandoResumen(false);
+    }
+  };
+
+  const handleConfirmarBorrado = async () => {
+    try {
+      const params = modoTotal ? {} : { fecha_desde: fechaDesde || undefined, fecha_hasta: fechaHasta || undefined };
+      const data = await limpiarVentas(params);
+      setResultado(data);
+      setResumen(null);
+      setDialogOpen(false);
+      setMensajeExito(`Se borraron ${data.ventas_borradas} venta(s) por un total de ${fmt(data.monto_total)}.`);
+    } catch (e) {
+      setDialogOpen(false);
+      setError(e.message);
+    }
+  };
+
+  return (
+    <Box>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h6" fontWeight="bold" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <DeleteSweepIcon color="error" /> Limpieza de Ventas Históricas
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Borra permanentemente ventas, ítems y pagos de un período. El stock e inventario no se ven afectados.
+        </Typography>
+      </Box>
+
+      {/* Resultado del último borrado */}
+      {resultado && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setResultado(null)}>
+          <Typography fontWeight="bold">Limpieza completada exitosamente.</Typography>
+          <Typography variant="body2">
+            Se borraron <strong>{resultado.ventas_borradas}</strong> ventas •{" "}
+            <strong>{resultado.detalles_borrados}</strong> ítems •{" "}
+            <strong>{resultado.pagos_borrados}</strong> pagos •{" "}
+            Monto total: <strong>{fmt(resultado.monto_total)}</strong>
+          </Typography>
+        </Alert>
+      )}
+
+      {/* Sección 1: Por rango de fechas */}
+      <Paper variant="outlined" sx={{ p: 3, mb: 2 }}>
+        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+          Borrar por rango de fechas
+        </Typography>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-start" sx={{ mb: 2 }}>
+          <TextField
+            label="Desde"
+            type="date"
+            size="small"
+            value={fechaDesde}
+            onChange={(e) => { setFechaDesde(e.target.value); setResumen(null); setModoTotal(false); }}
+            InputLabelProps={{ shrink: true }}
+            sx={{ minWidth: 160 }}
+          />
+          <TextField
+            label="Hasta"
+            type="date"
+            size="small"
+            value={fechaHasta}
+            onChange={(e) => { setFechaHasta(e.target.value); setResumen(null); setModoTotal(false); }}
+            InputLabelProps={{ shrink: true }}
+            sx={{ minWidth: 160 }}
+          />
+          <Button
+            variant="outlined"
+            startIcon={cargandoResumen && !modoTotal ? <CircularProgress size={16} /> : <SearchIcon />}
+            onClick={() => { setModoTotal(false); cargarResumen(false); }}
+            disabled={cargandoResumen}
+          >
+            Ver resumen
+          </Button>
+        </Stack>
+
+        {/* Vista previa */}
+        {!modoTotal && resumen && (
+          <Alert
+            severity={resumen.cantidad_ventas === 0 ? "info" : "warning"}
+            sx={{ mb: 2 }}
+          >
+            {resumen.cantidad_ventas === 0
+              ? "No hay ventas en ese rango de fechas."
+              : <>Se borrarán <strong>{resumen.cantidad_ventas}</strong> venta(s) por un total de <strong>{fmt(resumen.monto_total)}</strong>.</>
+            }
+          </Alert>
+        )}
+
+        {!modoTotal && resumen && resumen.cantidad_ventas > 0 && (
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<DeleteSweepIcon />}
+            onClick={() => setDialogOpen(true)}
+          >
+            Borrar estas ventas
+          </Button>
+        )}
+      </Paper>
+
+      {/* Separador visual */}
+      <Divider sx={{ my: 3 }}>
+        <Chip label="o" size="small" />
+      </Divider>
+
+      {/* Sección 2: Borrar TODO */}
+      <Paper
+        variant="outlined"
+        sx={{ p: 3, borderColor: "error.main", borderWidth: 2 }}
+      >
+        <Typography variant="subtitle1" fontWeight="bold" color="error" sx={{ mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
+          <WarningAmberIcon fontSize="small" /> Borrar TODO el historial de ventas
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Elimina absolutamente todas las ventas registradas en el sistema, sin límite de fecha. Usá esta opción solo si querés empezar desde cero.
+        </Typography>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={cargandoResumen && modoTotal ? <CircularProgress size={16} color="error" /> : <SearchIcon />}
+            onClick={() => { setModoTotal(true); cargarResumen(true); }}
+            disabled={cargandoResumen}
+          >
+            Ver resumen total
+          </Button>
+          {modoTotal && resumen && resumen.cantidad_ventas > 0 && (
+            <Button
+              variant="contained"
+              color="error"
+              startIcon={<DeleteSweepIcon />}
+              onClick={() => setDialogOpen(true)}
+            >
+              Borrar TODO
+            </Button>
+          )}
+        </Stack>
+        {modoTotal && resumen && (
+          <Alert
+            severity={resumen.cantidad_ventas === 0 ? "info" : "error"}
+            sx={{ mt: 2 }}
+          >
+            {resumen.cantidad_ventas === 0
+              ? "No hay ventas registradas en el sistema."
+              : <>El historial completo tiene <strong>{resumen.cantidad_ventas}</strong> venta(s) por un total de <strong>{fmt(resumen.monto_total)}</strong>. Esta operación no tiene vuelta atrás.</>
+            }
+          </Alert>
+        )}
+      </Paper>
+
+      {/* Diálogo de confirmación fuerte */}
+      <ConfirmacionTextoDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onConfirm={handleConfirmarBorrado}
+        resumen={resumen}
+        modoTotal={modoTotal}
+      />
+    </Box>
+  );
+}
+
 // ── Página principal ────────────────────────────────────────────────────────
 export default function AdministracionPage() {
   const confirm = useConfirm();
@@ -520,6 +790,7 @@ export default function AdministracionPage() {
           <Tab icon={<GroupIcon />} iconPosition="start" label="Usuarios del Sistema" />
           <Tab icon={<CategoryIcon />} iconPosition="start" label="Gestión de Categorías y Atajos" />
           <Tab icon={<KeyboardIcon />} iconPosition="start" label="Sistema / Respaldo" />
+          <Tab icon={<DeleteSweepIcon />} iconPosition="start" label="Limpieza de Ventas" sx={{ color: "error.main" }} />
         </Tabs>
       </Box>
 
@@ -766,6 +1037,14 @@ export default function AdministracionPage() {
             </Button>
           </Paper>
         </Box>
+      )}
+
+      {/* ─── TAB 3: LIMPIEZA DE VENTAS ─── */}
+      {tabActual === 3 && (
+        <LimpiezaVentasTab
+          setMensajeExito={setMensajeExito}
+          setError={setError}
+        />
       )}
 
       {/* Diálogos de Usuarios */}
