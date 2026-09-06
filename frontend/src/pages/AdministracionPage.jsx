@@ -482,25 +482,27 @@ function LimpiezaVentasTab({ setMensajeExito, setError }) {
         <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
           Borrar por rango de fechas
         </Typography>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-start" sx={{ mb: 2 }}>
-          <TextField
-            label="Desde"
-            type="date"
-            size="small"
-            value={fechaDesde}
-            onChange={(e) => { setFechaDesde(e.target.value); setResumen(null); setModoTotal(false); }}
-            InputLabelProps={{ shrink: true }}
-            sx={{ minWidth: 160 }}
-          />
-          <TextField
-            label="Hasta"
-            type="date"
-            size="small"
-            value={fechaHasta}
-            onChange={(e) => { setFechaHasta(e.target.value); setResumen(null); setModoTotal(false); }}
-            InputLabelProps={{ shrink: true }}
-            sx={{ minWidth: 160 }}
-          />
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-end" sx={{ mb: 2 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ pl: 0.5 }}>Desde</Typography>
+            <TextField
+              type="date"
+              size="small"
+              value={fechaDesde}
+              onChange={(e) => { setFechaDesde(e.target.value); setResumen(null); setModoTotal(false); }}
+              sx={{ minWidth: 160 }}
+            />
+          </Box>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ pl: 0.5 }}>Hasta</Typography>
+            <TextField
+              type="date"
+              size="small"
+              value={fechaHasta}
+              onChange={(e) => { setFechaHasta(e.target.value); setResumen(null); setModoTotal(false); }}
+              sx={{ minWidth: 160 }}
+            />
+          </Box>
           <Button
             variant="outlined"
             startIcon={cargandoResumen && !modoTotal ? <CircularProgress size={16} /> : <SearchIcon />}
