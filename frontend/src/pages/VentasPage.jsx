@@ -380,18 +380,34 @@ export default function VentasPage() {
   };
 
   // Atajos de Teclado Globales (Alt+1..4 para cobro directo, Alt+C para combinado, Esc para cancelar)
+  // Usamos refs para leer estado fresco sin que el effect tenga dependencias —
+  // así el listener se registra UNA SOLA VEZ y no se re-crea con cada tecla.
+  const carritoRef        = useRef(carrito);
+  const confirmandoRef    = useRef(confirmando);
+  const dialogCierreRef   = useRef(dialogCierre);
+  const modoCombRef       = useRef(modoCombinado);
+  const sugerenciasRef    = useRef(mostrarSugerencias);
+  const faltaRef          = useRef(falta);
+
+  useEffect(() => { carritoRef.current     = carrito;          }, [carrito]);
+  useEffect(() => { confirmandoRef.current  = confirmando;      }, [confirmando]);
+  useEffect(() => { dialogCierreRef.current = dialogCierre;     }, [dialogCierre]);
+  useEffect(() => { modoCombRef.current     = modoCombinado;    }, [modoCombinado]);
+  useEffect(() => { sugerenciasRef.current  = mostrarSugerencias; }, [mostrarSugerencias]);
+  useEffect(() => { faltaRef.current        = falta;            }, [falta]);
+
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
-      if (dialogCierre) return;
+      if (dialogCierreRef.current) return;
 
       // Alt+C: Toggle modo combinado
       if (e.altKey && (e.key === "c" || e.key === "C")) {
         e.preventDefault();
-        if (carrito.length > 0) {
+        if (carritoRef.current.length > 0) {
           setModoCombinado((prev) => {
             const next = !prev;
-            if (next && falta > 0) {
-              setMontoPago(falta.toFixed(2));
+            if (next && faltaRef.current > 0) {
+              setMontoPago(faltaRef.current.toFixed(2));
             }
             return next;
           });
@@ -402,35 +418,35 @@ export default function VentasPage() {
       // Alt+1..4 Cobro Rápido
       if (e.altKey && e.key === "1") {
         e.preventDefault();
-        if (carrito.length > 0 && !confirmando) confirmarSimple("efectivo");
+        if (carritoRef.current.length > 0 && !confirmandoRef.current) confirmarSimple("efectivo");
         return;
       }
       if (e.altKey && e.key === "2") {
         e.preventDefault();
-        if (carrito.length > 0 && !confirmando) confirmarSimple("transferencia");
+        if (carritoRef.current.length > 0 && !confirmandoRef.current) confirmarSimple("transferencia");
         return;
       }
       if (e.altKey && e.key === "3") {
         e.preventDefault();
-        if (carrito.length > 0 && !confirmando) confirmarSimple("tarjeta_debito");
+        if (carritoRef.current.length > 0 && !confirmandoRef.current) confirmarSimple("tarjeta_debito");
         return;
       }
       if (e.altKey && e.key === "4") {
         e.preventDefault();
-        if (carrito.length > 0 && !confirmando) confirmarSimple("tarjeta_credito");
+        if (carritoRef.current.length > 0 && !confirmandoRef.current) confirmarSimple("tarjeta_credito");
         return;
       }
 
       // Escape: Volver de combinado o limpiar carrito
       if (e.key === "Escape") {
-        if (mostrarSugerencias) {
+        if (sugerenciasRef.current) {
           setMostrarSugerencias(false);
           return;
         }
-        if (modoCombinado) {
+        if (modoCombRef.current) {
           setModoCombinado(false);
           setPagos([]);
-        } else if (carrito.length > 0) {
+        } else if (carritoRef.current.length > 0) {
           limpiarTodo();
           notificar("Venta cancelada / Carrito limpio", "info");
         }
@@ -439,7 +455,8 @@ export default function VentasPage() {
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [carrito, confirmando, dialogCierre, modoCombinado, mostrarSugerencias, inputValor]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // se registra una sola vez al montar
 
   // Manejo de teclas en el campo principal (F1..F12, Flechas Autocomplete, Enter)
   const handleInputKeyDown = async (e) => {

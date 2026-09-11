@@ -290,13 +290,22 @@ export default function ProductosPage() {
 
     try {
       if (productoEditando) {
-        // Modificación
+        // Modificación — actualizar estado local inmediatamente, re-fetch en background
         await actualizarProducto(productoEditando.id_producto, payload);
         const msg = `Producto "${payload.nombre}" actualizado correctamente.`;
         setDialogExito(msg);
         setMensajeExito(msg);
+        // Actualizar el item en la lista local sin esperar el re-fetch
+        const catNombre = categorias.find(c => c.id_categoria === payload.id_categoria)?.nombre || null;
+        setProductos((prev) =>
+          prev.map((p) =>
+            p.id_producto === productoEditando.id_producto
+              ? { ...p, ...payload, nombre_categoria: catNombre }
+              : p
+          )
+        );
       } else {
-        // Alta
+        // Alta — crear y luego refrescar para obtener el nuevo id y stock
         const stockNum = parseFloat(formStockInicial) || 0;
         payload.stock_inicial = stockNum.toFixed(3);
         await crearProducto(payload);
@@ -305,14 +314,13 @@ export default function ProductosPage() {
         setMensajeExito(msg);
       }
 
-      // Recargar catálogo
-      const nuevosDatos = await cargarDatos();
-
-      // Limpiar formulario y re-enfocar inmediatamente en código de barras para el siguiente escaneo
-      limpiarFormulario(nuevosDatos?.cats || categorias);
+      // Limpiar y re-enfocar inmediatamente para flujo ágil
+      limpiarFormulario(categorias);
       setTimeout(() => {
         codigoInputRef.current?.focus();
       }, 50);
+      // Re-fetch silencioso en background para sincronizar stock y datos reales del servidor
+      cargarDatos();
     } catch (err) {
       setDialogError(err.message || "Error al guardar producto");
     } finally {

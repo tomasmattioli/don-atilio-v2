@@ -1,3 +1,7 @@
+import os
+import asyncio
+import logging
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
@@ -5,6 +9,8 @@ from typing import List
 from app import models, schemas
 from app.database.database import get_db
 from app import auth
+
+logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter(tags=["Usuarios y Auth"])
 
@@ -49,6 +55,60 @@ def logout(
         usuario.sesion_expira = None
         db.commit()
     return {"ok": True}
+
+
+# --- EMERGENCIA: liberar sesión sin autenticación ---
+EMERGENCY_UNLOCK_KEY = os.getenv("EMERGENCY_UNLOCK_KEY", "")
+
+@router.post("/auth/emergencia/liberar-sesion")
+async def emergencia_liberar_sesion(
+    datos: schemas.EmergenciaLiberarSesionRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Endpoint de emergencia ("romper cristal"): libera la sesión trabada de un
+    usuario sin requerir JWT.  Protegido únicamente por EMERGENCY_UNLOCK_KEY
+    del .env.  NO exponer en la interfaz — uso exclusivo vía curl/Postman.
+    """
+    # Delay fijo de 2s en TODOS los intentos para mitigar fuerza bruta
+    await asyncio.sleep(2)
+
+    if not EMERGENCY_UNLOCK_KEY:
+        logger.error("[EMERGENCIA] Intento de uso pero EMERGENCY_UNLOCK_KEY no está configurada en .env")
+        raise HTTPException(status_code=503, detail="Mecanismo de emergencia no configurado")
+
+    if datos.clave_emergencia != EMERGENCY_UNLOCK_KEY:
+        logger.warning(
+            "[EMERGENCIA] ❌ Intento FALLIDO de liberar sesión — usuario solicitado: '%s' — IP del servidor registró este intento",
+            datos.nombre_usuario,
+        )
+        # Respuesta genérica: no revela si el usuario existe o si la clave está mal
+        raise HTTPException(status_code=401, detail="Credenciales de emergencia inválidas")
+
+    usuario = db.query(models.Usuario).filter(
+        models.Usuario.nombre == datos.nombre_usuario
+    ).first()
+
+    if not usuario:
+        # Clave correcta pero usuario no existe — loguear pero dar la misma respuesta genérica
+        logger.warning(
+            "[EMERGENCIA] Clave correcta pero usuario '%s' no existe",
+            datos.nombre_usuario,
+        )
+        raise HTTPException(status_code=401, detail="Credenciales de emergencia inválidas")
+
+    tenía_sesion = usuario.sesion_jti is not None
+    usuario.sesion_jti = None
+    usuario.sesion_expira = None
+    db.commit()
+
+    logger.info(
+        "[EMERGENCIA] ✅ Sesión liberada para usuario '%s' (tenía sesión activa: %s)",
+        datos.nombre_usuario,
+        tenía_sesion,
+    )
+
+    return {"ok": True, "mensaje": f"Sesión de '{datos.nombre_usuario}' liberada correctamente"}
 
 
 # --- ROLES ---
@@ -170,10 +230,8 @@ def forzar_logout(
     db.commit()
     return {"ok": True}
 
-import os
 import subprocess
 import glob
-from datetime import datetime
 from fastapi.responses import FileResponse
 
 @router.get("/admin/backup/descargar")

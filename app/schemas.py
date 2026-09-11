@@ -94,6 +94,10 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     usuario: UsuarioResponse
 
+class EmergenciaLiberarSesionRequest(BaseModel):
+    nombre_usuario: str
+    clave_emergencia: str
+
 # --- CAJA ---
 class AbrirCajaRequest(BaseModel):
     id_usuario: Optional[int] = None
